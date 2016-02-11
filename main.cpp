@@ -6,6 +6,10 @@ int main(int argc, char *argv[])
 {
   QApplication a(argc, argv);
   
+  LightSource l = LightSource(Vec3f(-2.0f, 4.0f, -2.0f), Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0), 5.0f, 
+                              Vec3f(0.0, 1.0, 0.0), false, true);
+  Info::scene.lights.push_back(l);
+  
   /*
   std::ifstream obj("../../../../obj/inn_1.obj");
   std::ifstream mtl("../../../../obj/inn_1.mtl");
@@ -15,13 +19,13 @@ int main(int argc, char *argv[])
   Info::scene.objects.push_back(*object);
   /* */
   
-  /*
+//  /*
   std::ifstream obj("../../../../obj/refl_scene.obj");
   std::ifstream mtl("../../../../obj/refl_scene.mtl");
   Object3D *object = Object3D::fromObj(obj, mtl);
   Info::scene.objects.push_back(*object);
   /* */
-//  /*
+  /*
   std::ifstream obj("../../../../obj/plane.obj");
   std::ifstream mtl("../../../../obj/plane.mtl");
   Object3D *object = Object3D::fromObj(obj, mtl);

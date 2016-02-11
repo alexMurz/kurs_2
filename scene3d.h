@@ -8,20 +8,26 @@ class LightSource {
     
   public:
     bool enabled;
-    Vec3f origin, diffuseLight;
+    Vec3f origin, diffuseLight, specularLight;
     float energy;
     bool  isEye;
     Vec3f attenuation; // Constant, Linear, Quadratic
     
-    LightSource(const Vec3f & origin = Vec3f(0,0,0), const Vec3f & diffuseLight = Vec3f(1,1,1), 
-                const float & energy = 5.0f, const Vec3f & attenuation = Vec3f(1, 0, 0), bool isEye = true, bool enabled = false) : 
+    LightSource(const Vec3f & origin = Vec3f(0.0f,0.0f,0.0f), 
+                const Vec3f & diffuseLight = Vec3f(1.0f,1.0f,1.0f), const Vec3f & specularLight = Vec3f(1.0f,1.0f,1.0f), 
+                const float & energy = 5.0f, 
+                const Vec3f & attenuation = Vec3f(1.0f,0.0f,0.0f), 
+                bool isEye = true, bool enabled = false) : 
       enabled(enabled),
       origin(origin), 
       diffuseLight(diffuseLight),
+      specularLight(specularLight),
       energy(energy),
       isEye(isEye),
       attenuation(attenuation)
-    {}
+    {
+      this->attenuation.normalize();
+    }
 };
 
 

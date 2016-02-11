@@ -295,39 +295,49 @@ bool RayTraceRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & 
   return hit;
 }
 
-Vec3f lights[] = { Vec3f(-2.0, 4.0,-2.0), Vec3f( 2.0, 4.0,-2.0) };
-float energy[] = { 3.0, 3.0 };
-Vec3f diffuse[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
-Vec3f specular[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
-int lightCount = 2;
+//Vec3f lights[] = { Vec3f(-2.0, 4.0,-2.0), Vec3f( 2.0, 4.0,-2.0) };
+//float energy[] = { 3.0, 3.0 };
+//Vec3f diffuse[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
+//Vec3f specular[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
+//int lightCount = 2;
 
 Vec3f RayTraceRenderer::lightingCalc(const Vec3f& p, const Vec3f& n, const Triangle3D * triangle) {
   Vec3f color;
   const Material * mat = triangle->material;
-  for (int i = 0; i < lightCount; i++) {
-    Vec3f v2 = lights[i];
+  
+  if (Info::scene.lights.size() == 0) {
+    return mat->diffuseReflection;
+  }
+  
+  for (int i = 0; i < Info::scene.lights.size(); i++) {
+    LightSource & light = Info::scene.lights[i];
+    
+    Vec3f v2 = light.origin;
     Vec3f v1 = p + (v2-p).normalize() * 0.01f;
     float dist = (v2-v1).length();
     
     if (!sendRay(v1, v2, dist, triangle)) {
-      float e = energy[i];
+      float e = light.energy;
       
       Vec3f L = (v2-v1).normalize();
       Vec3f E = (-v1).normalize(); // we are in Eye Coordinates, so EyePos is (0,0,0)  
       Vec3f R = (-reflect(L,n));
       
       // Diffuse
-      float falloff = clamp(e/(dist), 0.0f, 1.0f);
-      Col3f dif = mat->diffuseReflection.mul(diffuse[i]) * (clamp(n*L, 0.0f, 1.0f) * falloff);
+      float falloff = light.attenuation[0];//clamp(e/(dist), 0.0f, 1.0f);
+      falloff += light.attenuation[1] * clamp(1 - dist/e, 0.0f, 1.0f);
+      falloff += light.attenuation[2] * clamp(1 - dist*dist/(e*e), 0.0f, 1.0f);
+      
+      Col3f dif = mat->diffuseReflection.mul(Info::scene.lights[i].diffuseLight) * (clamp(n*L, 0.0f, 1.0f) * falloff);
       
       dif[0] = clamp(dif[0], 0.0, 1.0);
       dif[1] = clamp(dif[1], 0.0, 1.0);
       dif[2] = clamp(dif[2], 0.0, 1.0);
       
       // Specular
-      Col3f spe = specular[i] * pow( clamp(R*E, 0.0, 1.0), 0.3 * 100/*Shininess*/ );
+      Col3f spe = light.specularLight * pow( clamp(R*E, 0.0, 1.0), 0.3 * 100/*Shininess*/ );
       
-      color = color + dif + spe;// + spe;
+      color = color + dif + spe; 
     }
   }
   return color;
