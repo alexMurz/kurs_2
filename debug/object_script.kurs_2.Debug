@@ -1,0 +1,13 @@
+INPUT(
+./debug\main.o
+./debug\mainwindow.o
+./debug\bboxrenderer.o
+./debug\geom.o
+./debug\object3d.o
+./debug\info.o
+./debug\raytracerenderer.o
+./debug\qrc_resource.o
+./debug\moc_mainwindow.o
+./debug\moc_bboxrenderer.o
+./debug\moc_raytracerenderer.o
+);

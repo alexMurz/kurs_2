@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/kernel">
+        <file>bbox.cl</file>
+        <file>raytrace.cl</file>
+    </qresource>
+    <qresource prefix="/obj">
+        <file>obj/cube.mtl</file>
+        <file>obj/cube.obj</file>
+        <file>obj/inn_1.mtl</file>
+        <file>obj/inn_1.obj</file>
+    </qresource>
+</RCC>

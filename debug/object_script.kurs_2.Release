@@ -1,0 +1,13 @@
+INPUT(
+./release\main.o
+./release\mainwindow.o
+./release\bboxrenderer.o
+./release\geom.o
+./release\object3d.o
+./release\info.o
+./release\raytracerenderer.o
+./release\qrc_resource.o
+./release\moc_mainwindow.o
+./release\moc_bboxrenderer.o
+./release\moc_raytracerenderer.o
+);
