@@ -18,15 +18,20 @@ typedef struct {
 } Triangle3D;
 
 typedef struct {
+  int enabled;
   float3 position;
   float3 diffuse;
   float3 specular;
   float  energy;
+  int    isEye;
+  float3 attenuation;
 } Light_t;
+
 typedef struct {
   global const Light_t *lights;
   int count;
 } LightSystem;
+
 LightSystem makeLightSystem(global const Light_t *lights, const int count) {
   LightSystem l = { lights, count };
   return l;
@@ -123,9 +128,14 @@ SendRayResult sendRay(global const Triangle3D * triangles, const int trianglesCo
 }
 
 float3 lighting(global const Triangle3D * triangles, const int trianglesCount, 
-                /*global const*/ Light_t * lights, const int lightsCount, 
+                global const Light_t * lights, const int lightsCount, 
                 int triangle, float3 p) {
   float3 col = 0;                
+
+  if (lightsCount == 0) {
+    col = triangles[triangle].diffuse;
+    return col;
+  }
 
   for (int i = 0; i < lightsCount; i++) {
   
@@ -141,7 +151,11 @@ float3 lighting(global const Triangle3D * triangles, const int trianglesCount,
       float3 R = -reflect(L, triangles[triangle].n);
       
       // Diffuse
-      float falloff = clamp(e/(dist), 0.0f, 1.0f);
+      float falloff = lights[i].attenuation.x;
+      falloff += lights[i].attenuation.y * (1-dist/e);
+      falloff += lights[i].attenuation.z * (1-dist*dist/(e*e));
+      falloff = clamp(falloff, 0.0f, 1.0f);      
+
       float3 dif = triangles[triangle].diffuse * lights[i].diffuse * (clamp(dot(triangles[triangle].n, L), 0.0f, 1.0f) * falloff);
       
       dif[0] = clamp(dif[0], 0.0f, 1.0f);
@@ -150,7 +164,7 @@ float3 lighting(global const Triangle3D * triangles, const int trianglesCount,
       
       float3 spe = triangles[triangle].specular * lights[i].specular * pow( 
         clamp(dot(R, E), 0.0f, 1.0f), 
-        float(0.3 * 100)
+        float(0.3f * triangles[triangle].shininess)
       );
       
       
@@ -167,7 +181,7 @@ float3 lighting(global const Triangle3D * triangles, const int trianglesCount,
 
 float3 rayTrace(global const Triangle3D * triangles, const int trianglesCount, 
                 const float3 origin, const float3 ray, int jump, int skip, 
-                /*global const*/ Light_t * lights, const int lightsCount) {
+                global const Light_t * lights, const int lightsCount) {
   int maxDistance = 10000;
   int maxJump = 10;
   if (jump >= maxJump) return float3(0);
@@ -198,15 +212,19 @@ void kernel rayCast(
   /* 2 */ global const float * rayMatrix, 
   /* 3 */ global const Triangle3D * triangles,
   /* 4 */ global const int * trianglesCount,
-  /* 5 */ // global const Light_t * lights,
-  /* 6 */ // global const int * lightsCount,
-  /* 7 */ global int * frame
+  /* 5 */ global int * frame,
+  /* 6 */ global const Light_t * lights,
+  /* 7 */ global const int * lightsCount_p,
+  /* 8 */ global float * cout
 ) {
   int x = get_global_id(0);
   int y = get_global_id(1);
   float3 orig = origin[0];
   int samples = 1;
   
+  int lightCount = lightsCount_p[0];
+  
+/*
   const int lightCount = 1;
   Light_t lights[lightCount];
   lights[0].diffuse = 1;
@@ -216,7 +234,6 @@ void kernel rayCast(
   lights[0].position.y =  4;
   lights[0].position.z = -2;
   
-/*
   lights[1].diffuse = 1;
   lights[1].specular = 1;
   lights[1].energy  = 3;
@@ -248,4 +265,26 @@ void kernel rayCast(
   color /= samples*samples;
   
   frame[x + (viewport[1] - 1 - y)*viewport[0]] = float3ToColor(color);
+  
+  cout[0] = lights[0].enabled;
+  
+  cout[1] = lights[0].position[0];
+  cout[2] = lights[0].position[1];
+  cout[3] = lights[0].position[2];
+  
+  cout[4] = lights[0].diffuse[0];
+  cout[5] = lights[0].diffuse[1];
+  cout[6] = lights[0].diffuse[2];
+  
+  cout[7] = lights[0].specular[0];
+  cout[8] = lights[0].specular[1];
+  cout[9] = lights[0].specular[2];
+  
+  cout[10] = lights[0].energy;
+  cout[11] = lights[0].isEye;
+  
+  cout[12] = lights[0].attenuation[0];
+  cout[13] = lights[0].attenuation[1];
+  cout[14] = lights[0].attenuation[2];
+
 }

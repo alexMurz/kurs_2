@@ -13,10 +13,12 @@
 extern int getMilliCount();
 
 static const int b_frame_id = 5;
+static const int b_light_id = 6;
+static const int b_lightCount_id = 7;
 
 ///////////////////////////////////////////////////
 
-RayTraceRenderer::RayTraceRenderer() : QWidget(0), frame(0), clTriangles(0) {
+RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lightCount(0) {
   setMinimumWidth(400);
   setMinimumHeight(300);
   mutexPaint = false;
@@ -143,6 +145,8 @@ void RayTraceRenderer::prepareCL() {
   b_origin = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*3);
   b_ray = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*16);
   b_trianglesCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int));
+  b_lightCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)); 
+  b_cout = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float)*100);
   //create queue to which we will push commands for the device.
   queue = cl::CommandQueue(context, device[0]);
   pixelKernel = cl::Kernel(program, "rayCast");
@@ -151,6 +155,8 @@ void RayTraceRenderer::prepareCL() {
   pixelKernel.setArg(1, b_origin);
   pixelKernel.setArg(2, b_ray);
   pixelKernel.setArg(4, b_trianglesCount);
+  pixelKernel.setArg(b_lightCount_id, b_lightCount);
+  pixelKernel.setArg(8, b_cout);
   
   prepareObj();
 }
@@ -295,11 +301,22 @@ bool RayTraceRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & 
   return hit;
 }
 
-//Vec3f lights[] = { Vec3f(-2.0, 4.0,-2.0), Vec3f( 2.0, 4.0,-2.0) };
-//float energy[] = { 3.0, 3.0 };
-//Vec3f diffuse[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
-//Vec3f specular[] = { Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0) };
-//int lightCount = 2;
+
+void RayTraceRenderer::resetLightIfNeeded() {
+  if (lightCount != Info::scene.lights.size()) {
+    lightCount = Info::scene.lights.size();
+    
+    b_light = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(ClLightSource)*lightCount);
+    pixelKernel.setArg(b_light_id, b_light);
+    
+    queue.enqueueWriteBuffer(b_lightCount, CL_TRUE, 0, sizeof(int), &lightCount);
+    
+    qDebug() << "enqueue new light info : size =" << lightCount;
+    qDebug() << "light[0] =" << sizeof(ClLightSource);
+  }
+  
+  queue.enqueueWriteBuffer(b_light, CL_TRUE, 0, sizeof(ClLightSource)*lightCount, &Info::scene.lightsAsOpenCL[0]);
+}
 
 Vec3f RayTraceRenderer::lightingCalc(const Vec3f& p, const Vec3f& n, const Triangle3D * triangle) {
   Vec3f color;
@@ -320,11 +337,11 @@ Vec3f RayTraceRenderer::lightingCalc(const Vec3f& p, const Vec3f& n, const Trian
       float e = light.energy;
       
       Vec3f L = (v2-v1).normalize();
-      Vec3f E = (-v1).normalize(); // we are in Eye Coordinates, so EyePos is (0,0,0)  
+      Vec3f E = (-v1).normalize();
       Vec3f R = (-reflect(L,n));
       
       // Diffuse
-      float falloff = light.attenuation[0];//clamp(e/(dist), 0.0f, 1.0f);
+      float falloff = light.attenuation[0];
       falloff += light.attenuation[1] * clamp(1 - dist/e, 0.0f, 1.0f);
       falloff += light.attenuation[2] * clamp(1 - dist*dist/(e*e), 0.0f, 1.0f);
       
@@ -335,7 +352,7 @@ Vec3f RayTraceRenderer::lightingCalc(const Vec3f& p, const Vec3f& n, const Trian
       dif[2] = clamp(dif[2], 0.0, 1.0);
       
       // Specular
-      Col3f spe = light.specularLight * pow( clamp(R*E, 0.0, 1.0), 0.3 * 100/*Shininess*/ );
+      Col3f spe = mat->specularReflection.mul(light.specularLight) * pow( clamp(R*E, 0.0, 1.0), 0.3 * mat->shininess/*Shininess*/ );
       
       color = color + dif + spe; 
     }
@@ -397,6 +414,8 @@ void RayTraceRenderer::renderCL() {
   qDebug() << "Start ... ";
   int start = getMilliCount();
 
+  resetLightIfNeeded();
+  
   Vec3f origin = (view * Vec4f(0.0, 0.0, 0.0, 1.0));
   
   queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(int)*2, viewport);
@@ -414,6 +433,18 @@ void RayTraceRenderer::renderCL() {
   queue.finish();
   
   queue.enqueueReadBuffer(b_frame, CL_TRUE, 0, sizeof(int)*width*height, frame->bits());
+  
+  float cout[100];
+  queue.enqueueReadBuffer(b_cout, CL_TRUE, 0, sizeof(float)*100, cout);
+  qDebug() << cout[0];
+  qDebug() << cout[1] << cout[2] << cout[3];
+  qDebug() << cout[4] << cout[5] << cout[6];
+  qDebug() << cout[7] << cout[8] << cout[9];
+  
+  qDebug() << cout[10];
+  qDebug() << cout[11];
+  
+  qDebug() << cout[12] << cout[13] << cout[14];
   
   qDebug() << getMilliCount() - start;
 }
@@ -447,14 +478,7 @@ void RayTraceRenderer::renderFrame(bool force) {
   if (!force)
     if (!isVisible() ||  // Window closed
         !drawingButton->isChecked() // Button unchecked
-        ) return; // Stop loop
-  
-//  for (int x = 0; x < width; x++) {
-//    for (int y = 0; y < height; y++) {
-//      frame->setPixel(x, y, 0);
-//    }
-//  }
-  
+        ) return; // Stop loop  
   
   while(mutexMatrix); 
   mutexMatrix = true;

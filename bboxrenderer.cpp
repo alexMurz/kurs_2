@@ -275,14 +275,9 @@ void BBoxRenderer::drawingButtonCheck() {
 }
 
 Vec4f BBoxRenderer::completeProjection(Vec4f v, float & sign) {
-  v[0] *= 1/std::abs(v[3]);
-  v[1] *= 1/std::abs(v[3]);
-  v[2] *= 1/std::abs(v[3]);
-  
-  sign = v[2] > 1 ? -1 : 1;
-  
-//  qDebug() << "z = " << ((int)(v[2] * 100)) / 100.0f << " w = " << ((int)(v[3] * 100)) / 100.0f;
-  
+  v[0] /= std::abs(v[3]) + 1;
+  v[1] /= std::abs(v[3]) + 1;
+  v[2] /= std::abs(v[3]) + 1;
   
   v[0] = (v[0]*0.5+0.5)*width;
   v[1] = (v[1]*0.5+0.5)*height;
@@ -386,7 +381,7 @@ void BBoxRenderer::renderPixel() {
             v[0][3], v[1][3], v[2][3], 
             c
           );
-          Col3i col = Col3i(255, 255, 255); // = colorCalculation(mv, pos, n, triangle->material);
+          Col3i col = colorCalculation(mv, pos, n, triangle->material);
           frame->setPixel(x, height-y, makeColor(col));
         }
       }

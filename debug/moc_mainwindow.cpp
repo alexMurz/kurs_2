@@ -19,8 +19,8 @@
 
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_MainWindow_t {
-    QByteArrayData data[4];
-    char stringdata[48];
+    QByteArrayData data[8];
+    char stringdata[98];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -30,13 +30,18 @@ struct qt_meta_stringdata_MainWindow_t {
 static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
     {
 QT_MOC_LITERAL(0, 0, 10), // "MainWindow"
-QT_MOC_LITERAL(1, 11, 15), // "runbboxRenderer"
-QT_MOC_LITERAL(2, 27, 0), // ""
-QT_MOC_LITERAL(3, 28, 19) // "runRayTraceRenderer"
+QT_MOC_LITERAL(1, 11, 12), // "updateLights"
+QT_MOC_LITERAL(2, 24, 0), // ""
+QT_MOC_LITERAL(3, 25, 13), // "showLightInfo"
+QT_MOC_LITERAL(4, 39, 3), // "idx"
+QT_MOC_LITERAL(5, 43, 15), // "runbboxRenderer"
+QT_MOC_LITERAL(6, 59, 19), // "runRayTraceRenderer"
+QT_MOC_LITERAL(7, 79, 18) // "runRaycastRenderer"
 
     },
-    "MainWindow\0runbboxRenderer\0\0"
-    "runRayTraceRenderer"
+    "MainWindow\0updateLights\0\0showLightInfo\0"
+    "idx\0runbboxRenderer\0runRayTraceRenderer\0"
+    "runRaycastRenderer"
 };
 #undef QT_MOC_LITERAL
 
@@ -46,7 +51,7 @@ static const uint qt_meta_data_MainWindow[] = {
        7,       // revision
        0,       // classname
        0,    0, // classinfo
-       2,   14, // methods
+       5,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -54,10 +59,16 @@ static const uint qt_meta_data_MainWindow[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,   24,    2, 0x0a /* Public */,
-       3,    0,   25,    2, 0x0a /* Public */,
+       1,    0,   39,    2, 0x0a /* Public */,
+       3,    1,   40,    2, 0x0a /* Public */,
+       5,    0,   43,    2, 0x0a /* Public */,
+       6,    0,   44,    2, 0x0a /* Public */,
+       7,    0,   45,    2, 0x0a /* Public */,
 
  // slots: parameters
+    QMetaType::Void,
+    QMetaType::Void, QMetaType::QModelIndex,    4,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
 
@@ -69,12 +80,14 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
     if (_c == QMetaObject::InvokeMetaMethod) {
         MainWindow *_t = static_cast<MainWindow *>(_o);
         switch (_id) {
-        case 0: _t->runbboxRenderer(); break;
-        case 1: _t->runRayTraceRenderer(); break;
+        case 0: _t->updateLights(); break;
+        case 1: _t->showLightInfo((*reinterpret_cast< QModelIndex(*)>(_a[1]))); break;
+        case 2: _t->runbboxRenderer(); break;
+        case 3: _t->runRayTraceRenderer(); break;
+        case 4: _t->runRaycastRenderer(); break;
         default: ;
         }
     }
-    Q_UNUSED(_a);
 }
 
 const QMetaObject MainWindow::staticMetaObject = {
@@ -93,6 +106,8 @@ void *MainWindow::qt_metacast(const char *_clname)
     if (!_clname) return Q_NULLPTR;
     if (!strcmp(_clname, qt_meta_stringdata_MainWindow.stringdata))
         return static_cast<void*>(const_cast< MainWindow*>(this));
+    if (!strcmp(_clname, "LightViewUpdateListener"))
+        return static_cast< LightViewUpdateListener*>(const_cast< MainWindow*>(this));
     return QMainWindow::qt_metacast(_clname);
 }
 
@@ -102,13 +117,13 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 2)
+        if (_id < 5)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 2;
+        _id -= 5;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 2)
+        if (_id < 5)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 2;
+        _id -= 5;
     }
     return _id;
 }

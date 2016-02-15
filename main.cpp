@@ -6,9 +6,10 @@ int main(int argc, char *argv[])
 {
   QApplication a(argc, argv);
   
-  LightSource l = LightSource(Vec3f(-2.0f, 4.0f, -2.0f), Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0), 5.0f, 
-                              Vec3f(0.0, 1.0, 0.0), false, true);
-  Info::scene.lights.push_back(l);
+  Info::scene.lights.push_back(LightSource(Vec3f(-2.0f, 4.0f, -2.0f), Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0), 5.0f, 
+                                           Vec3f(0.0, 1.0, 0.0), false, true));
+  Info::scene.lights.push_back(LightSource(Vec3f( 2.0f, 4.0f, -2.0f), Vec3f(1.0, 1.0, 1.0), Vec3f(1.0, 1.0, 1.0), 5.0f, 
+                                           Vec3f(0.0, 1.0, 0.0), false, true));
   
   /*
   std::ifstream obj("../../../../obj/inn_1.obj");

@@ -33,7 +33,7 @@ MOVE          = mv -f
 TAR           = tar -cf
 COMPRESS      = gzip -9f
 DISTNAME      = kurs_21.0.0
-DISTDIR = /Users/AleksejMurzanev/GoogleDrive/kurs_2/.tmp/kurs_21.0.0
+DISTDIR = /Users/AleksejMurzanev/Desktop/kurs_2/.tmp/kurs_21.0.0
 LINK          = /Applications/Xcode.app/Contents/Developer/usr/bin/g++
 LFLAGS        = -headerpad_max_install_names -framework OpenCL -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.7 -Wl,-rpath,/Users/AleksejMurzanev/Qt/5.4/clang_64/lib
 LIBS          = $(SUBLIBS) -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib -framework QtWidgets -framework QtGui -framework QtCore -framework DiskArbitration -framework IOKit -framework QtConcurrent -framework OpenGL -framework AGL 
@@ -54,10 +54,14 @@ SOURCES       = ../main.cpp \
 		../geom.cpp \
 		../object3d.cpp \
 		../info.cpp \
-		../raytracerenderer.cpp qrc_resource.cpp \
+		../raytracerenderer.cpp \
+		../lightview.cpp \
+		../raycastrenderer.cpp qrc_resource.cpp \
 		moc_mainwindow.cpp \
 		moc_bboxrenderer.cpp \
-		moc_raytracerenderer.cpp
+		moc_raytracerenderer.cpp \
+		moc_lightview.cpp \
+		moc_raycastrenderer.cpp
 OBJECTS       = main.o \
 		mainwindow.o \
 		bboxrenderer.o \
@@ -65,10 +69,14 @@ OBJECTS       = main.o \
 		object3d.o \
 		info.o \
 		raytracerenderer.o \
+		lightview.o \
+		raycastrenderer.o \
 		qrc_resource.o \
 		moc_mainwindow.o \
 		moc_bboxrenderer.o \
-		moc_raytracerenderer.o
+		moc_raytracerenderer.o \
+		moc_lightview.o \
+		moc_raycastrenderer.o
 DIST          = ../bbox.cl \
 		../raytrace.cl \
 		../../../../Qt/5.4/clang_64/mkspecs/features/spec_pre.prf \
@@ -206,13 +214,17 @@ DIST          = ../bbox.cl \
 		../scene3d.h \
 		../info.h \
 		../cl.h \
-		../raytracerenderer.h ../main.cpp \
+		../raytracerenderer.h \
+		../lightview.h \
+		../raycastrenderer.h ../main.cpp \
 		../mainwindow.cpp \
 		../bboxrenderer.cpp \
 		../geom.cpp \
 		../object3d.cpp \
 		../info.cpp \
-		../raytracerenderer.cpp
+		../raytracerenderer.cpp \
+		../lightview.cpp \
+		../raycastrenderer.cpp
 QMAKE_TARGET  = kurs_2
 DESTDIR       = #avoid trailing-slash linebreak
 TARGET        = kurs_2.app/Contents/MacOS/kurs_2
@@ -553,8 +565,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents ../resource.qrc $(DISTDIR)/
-	$(COPY_FILE) --parents ../mainwindow.h ../bboxrenderer.h ../geom.h ../object3d.h ../scene3d.h ../info.h ../cl.h ../raytracerenderer.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../main.cpp ../mainwindow.cpp ../bboxrenderer.cpp ../geom.cpp ../object3d.cpp ../info.cpp ../raytracerenderer.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../mainwindow.h ../bboxrenderer.h ../geom.h ../object3d.h ../scene3d.h ../info.h ../cl.h ../raytracerenderer.h ../lightview.h ../raycastrenderer.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../main.cpp ../mainwindow.cpp ../bboxrenderer.cpp ../geom.cpp ../object3d.cpp ../info.cpp ../raytracerenderer.cpp ../lightview.cpp ../raycastrenderer.cpp $(DISTDIR)/
 
 
 clean:compiler_clean 
@@ -590,15 +602,37 @@ qrc_resource.cpp: ../resource.qrc \
 		../raytrace.cl
 	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/rcc -name resource ../resource.qrc -o qrc_resource.cpp
 
-compiler_moc_header_make_all: moc_mainwindow.cpp moc_bboxrenderer.cpp moc_raytracerenderer.cpp
+compiler_moc_header_make_all: moc_mainwindow.cpp moc_bboxrenderer.cpp moc_raytracerenderer.cpp moc_lightview.cpp moc_raycastrenderer.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) moc_mainwindow.cpp moc_bboxrenderer.cpp moc_raytracerenderer.cpp
+	-$(DEL_FILE) moc_mainwindow.cpp moc_bboxrenderer.cpp moc_raytracerenderer.cpp moc_lightview.cpp moc_raycastrenderer.cpp
 moc_mainwindow.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QMainWindow \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qmainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QPushButton \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qpushbutton.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QListWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlistwidget.h \
+		../lightview.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QComboBox \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcombobox.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QDoubleValidator \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qvalidator.h \
+		../scene3d.h \
+		../object3d.h \
+		../geom.h \
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
+		../info.h \
 		../mainwindow.h
-	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/GoogleDrive/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../mainwindow.h -o moc_mainwindow.cpp
+	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/Desktop/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../mainwindow.h -o moc_mainwindow.cpp
 
 moc_bboxrenderer.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
@@ -627,8 +661,12 @@ moc_bboxrenderer.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/
 		../object3d.h \
 		../geom.h \
 		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
 		../bboxrenderer.h
-	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/GoogleDrive/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../bboxrenderer.h -o moc_bboxrenderer.cpp
+	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/Desktop/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../bboxrenderer.h -o moc_bboxrenderer.cpp
 
 moc_raytracerenderer.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
@@ -652,8 +690,40 @@ moc_raytracerenderer.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versi
 		../scene3d.h \
 		../object3d.h \
 		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
 		../raytracerenderer.h
-	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/GoogleDrive/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../raytracerenderer.h -o moc_raytracerenderer.cpp
+	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/Desktop/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../raytracerenderer.h -o moc_raytracerenderer.cpp
+
+moc_lightview.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QComboBox \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcombobox.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QDoubleValidator \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qvalidator.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QPushButton \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qpushbutton.h \
+		../scene3d.h \
+		../object3d.h \
+		../geom.h \
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
+		../lightview.h
+	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/Desktop/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../lightview.h -o moc_lightview.cpp
+
+moc_raycastrenderer.cpp: ../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../raycastrenderer.h
+	/Users/AleksejMurzanev/Qt/5.4/clang_64/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/mkspecs/macx-g++ -I/Users/AleksejMurzanev/Desktop/kurs_2 -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtWidgets.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtGui.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtConcurrent.framework/Headers -I/Users/AleksejMurzanev/Qt/5.4/clang_64/lib/QtCore.framework/Headers -I. -F/Users/AleksejMurzanev/Qt/5.4/clang_64/lib ../raycastrenderer.h -o moc_raycastrenderer.cpp
 
 compiler_moc_source_make_all:
 compiler_moc_source_clean:
@@ -676,13 +746,30 @@ main.o: ../main.cpp ../mainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qmainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QPushButton \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qpushbutton.h \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QApplication \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qapplication.h \
-		../info.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QListWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlistwidget.h \
+		../lightview.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QComboBox \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcombobox.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QDoubleValidator \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qvalidator.h \
 		../scene3d.h \
 		../object3d.h \
 		../geom.h \
-		../cl.h
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
+		../info.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QApplication \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qapplication.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o ../main.cpp
 
 mainwindow.o: ../mainwindow.cpp ../mainwindow.h \
@@ -690,9 +777,29 @@ mainwindow.o: ../mainwindow.cpp ../mainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qmainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QPushButton \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qpushbutton.h \
-		../bboxrenderer.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QListWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlistwidget.h \
+		../lightview.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QComboBox \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcombobox.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QDoubleValidator \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qvalidator.h \
+		../scene3d.h \
+		../object3d.h \
+		../geom.h \
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
+		../info.h \
+		../bboxrenderer.h \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QImage \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qimage.h \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QPaintEvent \
@@ -705,20 +812,12 @@ mainwindow.o: ../mainwindow.cpp ../mainwindow.h \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QFuture \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qfuture.h \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QKeyEvent \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QCheckBox \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcheckbox.h \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
-		../info.h \
-		../scene3d.h \
-		../object3d.h \
-		../geom.h \
-		../cl.h \
 		../raytracerenderer.h \
 		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QFrame \
-		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qframe.h
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qframe.h \
+		../raycastrenderer.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o ../mainwindow.cpp
 
 bboxrenderer.o: ../bboxrenderer.cpp ../bboxrenderer.h \
@@ -749,6 +848,8 @@ bboxrenderer.o: ../bboxrenderer.cpp ../bboxrenderer.h \
 		../object3d.h \
 		../geom.h \
 		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QPainter \
@@ -786,7 +887,11 @@ info.o: ../info.cpp ../info.h \
 		../scene3d.h \
 		../object3d.h \
 		../geom.h \
-		../cl.h
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o info.o ../info.cpp
 
 raytracerenderer.o: ../raytracerenderer.cpp ../raytracerenderer.h \
@@ -812,6 +917,8 @@ raytracerenderer.o: ../raytracerenderer.cpp ../raytracerenderer.h \
 		../scene3d.h \
 		../object3d.h \
 		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
 		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h \
 		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QPainter \
@@ -839,6 +946,34 @@ raytracerenderer.o: ../raytracerenderer.cpp ../raytracerenderer.h \
 		../info.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o raytracerenderer.o ../raytracerenderer.cpp
 
+lightview.o: ../lightview.cpp ../lightview.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLineEdit \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlineedit.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QComboBox \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qcombobox.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QLabel \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qlabel.h \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/QDoubleValidator \
+		../../../Qt/5.4/clang_64/lib/QtGui.framework/Versions/5/Headers/qvalidator.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QPushButton \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qpushbutton.h \
+		../scene3d.h \
+		../object3d.h \
+		../geom.h \
+		../cl.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QString \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qstring.h \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/QDebug \
+		../../../Qt/5.4/clang_64/lib/QtCore.framework/Versions/5/Headers/qdebug.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o lightview.o ../lightview.cpp
+
+raycastrenderer.o: ../raycastrenderer.cpp ../raycastrenderer.h \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/QWidget \
+		../../../Qt/5.4/clang_64/lib/QtWidgets.framework/Versions/5/Headers/qwidget.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o raycastrenderer.o ../raycastrenderer.cpp
+
 qrc_resource.o: qrc_resource.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o qrc_resource.o qrc_resource.cpp
 
@@ -850,6 +985,12 @@ moc_bboxrenderer.o: moc_bboxrenderer.cpp
 
 moc_raytracerenderer.o: moc_raytracerenderer.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_raytracerenderer.o moc_raytracerenderer.cpp
+
+moc_lightview.o: moc_lightview.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_lightview.o moc_lightview.cpp
+
+moc_raycastrenderer.o: moc_raycastrenderer.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_raycastrenderer.o moc_raycastrenderer.cpp
 
 ####### Install
 

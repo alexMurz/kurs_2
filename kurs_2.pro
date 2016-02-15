@@ -17,7 +17,9 @@ SOURCES += main.cpp\
     geom.cpp \
     object3d.cpp \
     info.cpp \
-    raytracerenderer.cpp
+    raytracerenderer.cpp \
+    lightview.cpp \
+    raycastrenderer.cpp
 
 HEADERS  += mainwindow.h \
     bboxrenderer.h \
@@ -26,7 +28,9 @@ HEADERS  += mainwindow.h \
     scene3d.h \
     info.h \
     cl.h \
-    raytracerenderer.h
+    raytracerenderer.h \
+    lightview.h \
+    raycastrenderer.h
 
 RESOURCES = resource.qrc
 

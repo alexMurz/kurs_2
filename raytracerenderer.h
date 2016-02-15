@@ -18,9 +18,6 @@
 #include "scene3d.h"
 #include <cl.h>
 
-const float MAXDISTANCE = 10000000;
-const int RAYSAMPLES = 1;
-const int jumpCount = 12;
 
 typedef struct {
   cl_float3 v[3];
@@ -34,6 +31,9 @@ typedef struct {
 class RayTraceRenderer : public QWidget {
     Q_OBJECT
     static const int toolBarWidth = 200;
+    static const float MAXDISTANCE = 10000000;
+    static const int RAYSAMPLES = 1;
+    static const int jumpCount = 12;
     
     bool mutexPaint, mutexMatrix;
     
@@ -48,7 +48,11 @@ class RayTraceRenderer : public QWidget {
     CLTriangle3D * clTriangles;
     
     // OpenCL Buffers
-    cl::Buffer b_viewport, b_origin, b_ray, b_triangles, b_trianglesCount, b_frame;
+    cl::Buffer b_viewport, b_origin, b_ray, b_triangles, b_trianglesCount, b_frame, b_cout;
+    
+    void resetLightIfNeeded();
+    int lightCount;
+    cl::Buffer b_light, b_lightCount;
     
     bool sendRay(const Vec3f & origin, const Vec3f & ray, float maxDistance = MAXDISTANCE, const Triangle3D * skip = 0);
     bool sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & point, float & dist, Triangle3D *& triangle, float maxDistance = MAXDISTANCE, Triangle3D * skip = 0);
