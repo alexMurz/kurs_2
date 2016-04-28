@@ -33,7 +33,7 @@ RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lig
   view.translate(0, 15, 0);
   view = view * Matrix4x4::createXRotation(-90 * 3.1415 / 180.0f);
   /* */
-//  /*
+  /*
   view.translate(0, 7, 21);
   view = view * Matrix4x4::createXRotation(-15 * 3.1415 / 180.0f);
   /* */
@@ -76,25 +76,51 @@ RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lig
   frameButton->setText("1 Frame");
   connect(frameButton, SIGNAL(clicked(bool)), SLOT(paintButtonCheck()));
   
-  useOpenCL = new QCheckBox(uiFrame);
-  useOpenCL->setGeometry(5, 70, 35, 35);
-  QLabel * useOpenCLLabel = new QLabel(uiFrame);
-  useOpenCLLabel->setText("Use OpenCL");
-  useOpenCLLabel->setGeometry(40, 70, 100, 35);
-  
   prepareObjects = new QPushButton(uiFrame);
-  prepareObjects->setGeometry(0, 105, 200, 35);
+  prepareObjects->setGeometry(0, 70, 200, 35);
   prepareObjects->setText("PrepareObj");
   connect(prepareObjects, SIGNAL(clicked()), SLOT(prepareObj()));
   
-//  for (int i = 0; i < 4; i++) {
-//    for (int j = 0; j < 4; j++) {
-//      std::cerr << ((Object3D) Info::scene.objects[0]).getModel()[i][j] << " ";
-//    }
-//    std::cerr << "\n";
-//  }
+  int h = 110;
   
+  QLabel * l = new QLabel(uiFrame);
+  l->setGeometry(0, h, 200, 25);
+  l->setText("Избыточная выборка \nсглаживания");
+  l->setAlignment(Qt::AlignCenter);
+  
+  samplesBox = new QComboBox(uiFrame);
+  samplesBox->setGeometry(0, h+15, 200, 50);
+  samplesBox->addItem("SSAAx1");
+  samplesBox->addItem("SSAAx4");
+  samplesBox->addItem("SSAAx9");
+  samplesBox->addItem("SSAAx16");
+//  samplesBox->setEnabled(true);
+  
+  l = new QLabel(uiFrame);
+  l->setGeometry(0, h+50, 200, 25);
+  l->setText("Выборка освещения");
+  l->setAlignment(Qt::AlignCenter);
+  
+  softLightBox = new QComboBox(uiFrame);
+  softLightBox->setGeometry(0, h+60, 200, 50);
+  softLightBox->addItem("Жесткий свет (x1)");
+  softLightBox->addItem("Мягкий свет x4");
+  softLightBox->addItem("Мягкий свет x9");
+  softLightBox->addItem("Мягкий свет x16");
+  
+  buttonsState = 0b11;  
+  
+  setFocusPolicy(Qt::WheelFocus);
+      
   prepareCL();
+}
+
+int RayTraceRenderer::getSamplesCount() {
+  return samplesBox->currentIndex() + 1;
+}
+
+int RayTraceRenderer::getSoftLightSamples() {
+  return softLightBox->currentIndex() + 1;
 }
 
 void RayTraceRenderer::prepareCL() {
@@ -141,12 +167,11 @@ void RayTraceRenderer::prepareCL() {
   }
   
   // create buffers on the device
-  b_viewport = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*2);
-  b_origin = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*3);
+  b_viewport = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)*4);
+  b_origin = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*4);
   b_ray = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*16);
   b_trianglesCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int));
   b_lightCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)); 
-  b_cout = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float)*100);
   //create queue to which we will push commands for the device.
   queue = cl::CommandQueue(context, device[0]);
   pixelKernel = cl::Kernel(program, "rayCast");
@@ -156,7 +181,6 @@ void RayTraceRenderer::prepareCL() {
   pixelKernel.setArg(2, b_ray);
   pixelKernel.setArg(4, b_trianglesCount);
   pixelKernel.setArg(b_lightCount_id, b_lightCount);
-  pixelKernel.setArg(8, b_cout);
   
   prepareObj();
 }
@@ -172,10 +196,6 @@ void RayTraceRenderer::prepareObj() {
       tr->v[0] = o.getModel() * t->v[0];
       tr->v[1] = o.getModel() * t->v[1];
       tr->v[2] = o.getModel() * t->v[2];
-      if (triangles.size() == 2) {
-        std::cerr << tr->v[0][0] << " " << tr->v[0][1] << " " << tr->v[0][2] << "\n";
-        // -2 0 -3.5
-      }
       triangles.push_back(tr);
     }
   }
@@ -183,10 +203,15 @@ void RayTraceRenderer::prepareObj() {
   if (clTriangles) delete clTriangles;
   clTriangles = new CLTriangle3D[triangles.size()];
   for (size_t i = 0; i < triangles.size(); i++) {
+    
+    std::cerr << i << " ";
     CLTriangle3D & t = clTriangles[i];
     const Triangle3D * tr = triangles[i];
     for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) t.v[j].s[k] = tr->v[j][k];
+      for (int k = 0; k < 3; k++) { 
+        t.v[j].s[k]  = tr->v[j][k];
+        t.sn[j].s[k] = tr->sn[j][k];
+      }
       t.n.s[j] = tr->n[j];
       t.diff.s[j] = tr->material->diffuseReflection[j];
       t.spec.s[j] = tr->material->specularReflection[j];
@@ -201,106 +226,7 @@ void RayTraceRenderer::prepareObj() {
   pixelKernel.setArg(3, b_triangles);
   queue.enqueueWriteBuffer(b_triangles, CL_TRUE, 0, sizeof(CLTriangle3D) * triangles.size(), clTriangles);
   std::cerr << "ready in " << getMilliCount() - mill << "ms!\n";
-  
-  /*
-  float3 v0, v1, v2;
-  float3 n;
-  float3 diffuse, specular;
-  float3 refl;
-  int isMirror;
-  float reflectivity, shininess;
-  */
-  std::cerr << "CLSize: " << sizeof(cl_float3) * 7 + sizeof(cl_int) + sizeof(cl_float)*2 << " " << sizeof(CLTriangle3D) << "\n";
 }
-
-/*
- * http://geomalgorithms.com/a06-_intersect-2.html
- */
-bool RayTraceRenderer::intersect(//const Matrix4x4 & model,
-                                 Triangle3D * tr, 
-                                 const Vec3f &p0, // Ray origin 
-                                 const Vec3f &p1, // 
-                                 float maxDistance, float &distance, Vec3f &point) {
-  
-//  Vec3f v0 = model * tr->v[0];
-//  Vec3f v1 = model * tr->v[1];
-//  Vec3f v2 = model * tr->v[2];
-  Vec3f v0 = tr->v[0];
-  Vec3f v1 = tr->v[1];
-  Vec3f v2 = tr->v[2];
-  Vec3f N  = tr->n;
-  
-  Vec3f dir = (p1-p0).normalize();
-  Vec3f u = v1 - v0;
-  Vec3f v = v2 - v0;
-  
-  Vec3f w0 = p0 - v0;
-  float a = -(N * w0);
-  float b = (N * dir);
-  if (std::abs(b) < 1e-5) {
-    return false;
-  }
-  
-  float r = a/b;
-  if (r <= 0.0f || r >= maxDistance) return false;
-
-  distance = r;
-  point = p0 + r*dir;
-  
-  float uu, uv, vv, wu, wv, D;
-  uu = u * u;
-  uv = u * v;
-  vv = v * v;
-  Vec3f w = point - v0;
-  wu = w * u;
-  wv = w * v;
-  D = uv*uv - uu*vv;
-  
-  float s, t;
-  
-  s = (uv * wv - vv * wu) / D;
-  if (s < 0.0f || s > 1.0f) return false;
-  
-  t = (uv * wu - uu * wv) / D;
-  if (t < 0.0f || (s+t) > 1.0) return false;
-
-  return true;
-}
-
-bool RayTraceRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, float maxDistance, const Triangle3D * skip) {
-  Vec3f testPoint;
-  float d;
-  
-  foreach (Triangle3D * tr, triangles) {
-    if (tr == skip) continue;
-    if (intersect(tr, origin, ray, maxDistance, d, testPoint)) {
-      maxDistance = d;
-      return true;
-    }
-  }
-  
-  return false;
-}
-bool RayTraceRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & point, float & dist, Triangle3D *& triangle, float maxDistance, Triangle3D * skip) {
-  Vec3f testPoint;
-  bool hit = false;
-  float d;
-  
-  foreach (Triangle3D * tr, triangles) {
-    if (tr == skip) continue;
-    if (intersect(tr, origin, ray, maxDistance, d, testPoint)) {
-      maxDistance = d;
-      point = testPoint;
-      triangle = tr;
-      hit = true;
-    }
-  }
-  
-  dist = maxDistance;
-  
-  return hit;
-}
-
 
 void RayTraceRenderer::resetLightIfNeeded() {
   if (lightCount != Info::scene.lights.size()) {
@@ -318,112 +244,23 @@ void RayTraceRenderer::resetLightIfNeeded() {
   queue.enqueueWriteBuffer(b_light, CL_TRUE, 0, sizeof(ClLightSource)*lightCount, &Info::scene.lightsAsOpenCL[0]);
 }
 
-Vec3f RayTraceRenderer::lightingCalc(const Vec3f& p, const Vec3f& n, const Triangle3D * triangle) {
-  Vec3f color;
-  const Material * mat = triangle->material;
-  
-  if (Info::scene.lights.size() == 0) {
-    return mat->diffuseReflection;
-  }
-  
-  for (int i = 0; i < Info::scene.lights.size(); i++) {
-    LightSource & light = Info::scene.lights[i];
-    
-    Vec3f v2 = light.origin;
-    Vec3f v1 = p + (v2-p).normalize() * 0.01f;
-    float dist = (v2-v1).length();
-    
-    if (!sendRay(v1, v2, dist, triangle)) {
-      float e = light.energy;
-      
-      Vec3f L = (v2-v1).normalize();
-      Vec3f E = (-v1).normalize();
-      Vec3f R = (-reflect(L,n));
-      
-      // Diffuse
-      float falloff = light.attenuation[0];
-      falloff += light.attenuation[1] * clamp(1 - dist/e, 0.0f, 1.0f);
-      falloff += light.attenuation[2] * clamp(1 - dist*dist/(e*e), 0.0f, 1.0f);
-      
-      Col3f dif = mat->diffuseReflection.mul(Info::scene.lights[i].diffuseLight) * (clamp(n*L, 0.0f, 1.0f) * falloff);
-      
-      dif[0] = clamp(dif[0], 0.0, 1.0);
-      dif[1] = clamp(dif[1], 0.0, 1.0);
-      dif[2] = clamp(dif[2], 0.0, 1.0);
-      
-      // Specular
-      Col3f spe = mat->specularReflection.mul(light.specularLight) * pow( clamp(R*E, 0.0, 1.0), 0.3 * mat->shininess/*Shininess*/ );
-      
-      color = color + dif + spe; 
-    }
-  }
-  return color;
-}
-
-Col3f RayTraceRenderer::rayTrace(const Vec3f & origin, const Vec3f & ray, int jump, Triangle3D * skip) {
-  if (jump > jumpCount) return Col3f(0.0, 0.0, 0.0);
-  
-  Vec3f point;
-  Triangle3D * triangle;
-  float distanceToPoint;
-  
-  Col3f color = Col3f(0.0, 0.0, 0.0);
-  if (sendRay(origin, ray, point, distanceToPoint, triangle, MAXDISTANCE, skip)) {
-    
-    // Reflect
-    if (triangle->material->isMirror) {
-      Vec3f dir = (ray-origin).normalize();
-      Vec3f R = (reflect(dir, triangle->n)).normalize();
-      Vec3f v1 = point;
-      Vec3f v2 = point + R;
-      color = color + triangle->material->reflectivity * triangle->material->reflection.mul(rayTrace(v1, v2, jump+1, triangle));
-    }
-    
-    // Color calc
-    color = color + lightingCalc(point, triangle->n, triangle);
-  }
-  
-  color[0] = clamp(color[0], 0.0f, 1.0f);
-  color[1] = clamp(color[1], 0.0f, 1.0f);
-  color[2] = clamp(color[2], 0.0f, 1.0f);
-  
-  return color;
-}
-
-void RayTraceRenderer::renderRow(const Vec3f & origin, int y) {
-  float xf = 1.0f/RAYSAMPLES;
-  float yf = 1.0f/RAYSAMPLES;
-  for (int x = 0; x < width; x++) {
-    Col3f c;
-    for (float yy = yf/2; yy <= 1.0f; yy += yf) {
-      for (float xx = xf/2; xx <= 1.0f; xx += xf) {
-        Vec3f ray = Vec3f(rayMatrix * Vec4f(x + xx, y + yy, 0.0f, 1.0f));
-        c = c + rayTrace(origin, ray);
-      }
-    }
-    if (x == 200 && y == 100) {
-      Vec3f ray = Vec3f(rayMatrix * Vec4f((float)x, (float)y, 0.0f, 1.0f));
-      std::cerr << ray[0] << " " << ray[1] << " " << ray[2] << "\n";
-    }
-    c = c * (xf*yf);
-    frame->setPixel(x, height-y-1, makeColor(c));
-  }
-}
-
 void RayTraceRenderer::renderCL() {
-  qDebug() << "Start ... ";
+  qDebug() << "Start ... " << samplesBox->isEditable();
   int start = getMilliCount();
 
   resetLightIfNeeded();
   
   Vec3f origin = (view * Vec4f(0.0, 0.0, 0.0, 1.0));
   
-  queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(int)*2, viewport);
-  static float orig[3];
+  samplesInput = getSamplesCount();
+  softLightInput = getSoftLightSamples();
+  
+  queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(int)*4, viewport);
+  static float orig[4];
   for (int i = 0; i < 3; i++) orig[i] = origin[i];
   static float mat[16];
   for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) mat[i*4+j] = rayMatrix[i][j];
-  queue.enqueueWriteBuffer(b_origin, CL_TRUE, 0, sizeof(float)*3, orig);
+  queue.enqueueWriteBuffer(b_origin, CL_TRUE, 0, sizeof(float)*4, orig);
   queue.enqueueWriteBuffer(b_ray, CL_TRUE, 0, sizeof(float)*16, mat);
   
   int count = triangles.size();
@@ -433,42 +270,6 @@ void RayTraceRenderer::renderCL() {
   queue.finish();
   
   queue.enqueueReadBuffer(b_frame, CL_TRUE, 0, sizeof(int)*width*height, frame->bits());
-  
-  float cout[100];
-  queue.enqueueReadBuffer(b_cout, CL_TRUE, 0, sizeof(float)*100, cout);
-  qDebug() << cout[0];
-  qDebug() << cout[1] << cout[2] << cout[3];
-  qDebug() << cout[4] << cout[5] << cout[6];
-  qDebug() << cout[7] << cout[8] << cout[9];
-  
-  qDebug() << cout[10];
-  qDebug() << cout[11];
-  
-  qDebug() << cout[12] << cout[13] << cout[14];
-  
-  qDebug() << getMilliCount() - start;
-}
-
-static const int threads = 2;
-void RayTraceRenderer::renderPixel() {
-  qDebug() << "Start ... ";
-  int start = getMilliCount();
-
-  Vec3f origin = (view * Vec4f(0.0, 0.0, 0.0, 1.0));
-  
-  float step = 100.0f / height;
-  int si = height / 10;
-  
-  std::vector<QFuture<void> > future;
-  for (int y = 0; y < height;) {
-    for (int j = 0; j < threads, y < height; j++, y++) {
-      if (y < height)
-        future.push_back(QtConcurrent::run(this, &RayTraceRenderer::renderRow, origin, y));
-    }
-    for (size_t j = 0; j < future.size(); j++) future[j].waitForFinished();
-    future.clear();
-//    if (y%si==0) qDebug() << " ..." << y*step;
-  }
   
   qDebug() << getMilliCount() - start;
 }
@@ -485,11 +286,10 @@ void RayTraceRenderer::renderFrame(bool force) {
   rayMatrix = (view * proj) * biasMatrixInverse * vpMatrix;
   mutexMatrix = false;
   
-  if (useOpenCL->isChecked())
-    renderCL();
-  else
-    renderPixel();
+  renderCL();
   
+  if (force) buttonsState = 0b11;
+        
   update(); // call paintEvent
   updateFuture = QtConcurrent::run(this, &RayTraceRenderer::renderFrame, false); // Run new loop
 }
@@ -543,19 +343,29 @@ void RayTraceRenderer::resizeEvent(QResizeEvent * e) {
 void RayTraceRenderer::drawingButtonCheck() {
   if (drawingButton->isChecked()) {
     drawingButton->setText("Stop");
+    buttonsState = 0b10;
     if (!updateFuture.isRunning())
       updateFuture = QtConcurrent::run(this, &RayTraceRenderer::renderFrame, false);
   } else {
+    buttonsState = 0b11;    
     drawingButton->setText("Start");
   }
 }
 
 void RayTraceRenderer::paintButtonCheck() {
   if (drawingButton->isChecked()) return;
+  
+  frameButton->setEnabled(false);
+  buttonsState = 0b00;
   updateFuture = QtConcurrent::run(this, &RayTraceRenderer::renderFrame, true);  
 }
 
 void RayTraceRenderer::paintEvent(QPaintEvent *) {
+//  frameButton->setEnabled(true);
+  
+  frameButton->setEnabled(    (buttonsState&0b01) > 0 );
+  drawingButton->setEnabled(  (buttonsState&0b10) > 0 );
+  
   QPainter p(this);
   p.drawImage(QPoint(0, 0), *frame);
   update();

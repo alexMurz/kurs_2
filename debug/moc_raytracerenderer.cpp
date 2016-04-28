@@ -19,8 +19,8 @@
 
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_RayTraceRenderer_t {
-    QByteArrayData data[30];
-    char stringdata[279];
+    QByteArrayData data[27];
+    char stringdata[278];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -32,43 +32,40 @@ static const qt_meta_stringdata_RayTraceRenderer_t qt_meta_stringdata_RayTraceRe
 QT_MOC_LITERAL(0, 0, 16), // "RayTraceRenderer"
 QT_MOC_LITERAL(1, 17, 10), // "prepareObj"
 QT_MOC_LITERAL(2, 28, 0), // ""
-QT_MOC_LITERAL(3, 29, 9), // "renderRow"
-QT_MOC_LITERAL(4, 39, 5), // "Vec3f"
-QT_MOC_LITERAL(5, 45, 6), // "origin"
-QT_MOC_LITERAL(6, 52, 1), // "y"
-QT_MOC_LITERAL(7, 54, 11), // "renderPixel"
-QT_MOC_LITERAL(8, 66, 16), // "paintButtonCheck"
-QT_MOC_LITERAL(9, 83, 18), // "drawingButtonCheck"
-QT_MOC_LITERAL(10, 102, 11), // "renderFrame"
-QT_MOC_LITERAL(11, 114, 5), // "force"
-QT_MOC_LITERAL(12, 120, 11), // "resizeEvent"
-QT_MOC_LITERAL(13, 132, 13), // "QResizeEvent*"
-QT_MOC_LITERAL(14, 146, 10), // "paintEvent"
-QT_MOC_LITERAL(15, 157, 12), // "QPaintEvent*"
-QT_MOC_LITERAL(16, 170, 6), // "slotFW"
-QT_MOC_LITERAL(17, 177, 6), // "slotLW"
-QT_MOC_LITERAL(18, 184, 6), // "slotBW"
-QT_MOC_LITERAL(19, 191, 6), // "slotRW"
-QT_MOC_LITERAL(20, 198, 6), // "slotUW"
-QT_MOC_LITERAL(21, 205, 6), // "slotDW"
-QT_MOC_LITERAL(22, 212, 6), // "slotTL"
-QT_MOC_LITERAL(23, 219, 6), // "slotTR"
-QT_MOC_LITERAL(24, 226, 6), // "slotTU"
-QT_MOC_LITERAL(25, 233, 6), // "slotTD"
-QT_MOC_LITERAL(26, 240, 6), // "slotSL"
-QT_MOC_LITERAL(27, 247, 6), // "slotSR"
-QT_MOC_LITERAL(28, 254, 13), // "keyPressEvent"
-QT_MOC_LITERAL(29, 268, 10) // "QKeyEvent*"
+QT_MOC_LITERAL(3, 29, 16), // "paintButtonCheck"
+QT_MOC_LITERAL(4, 46, 18), // "drawingButtonCheck"
+QT_MOC_LITERAL(5, 65, 11), // "renderFrame"
+QT_MOC_LITERAL(6, 77, 5), // "force"
+QT_MOC_LITERAL(7, 83, 11), // "resizeEvent"
+QT_MOC_LITERAL(8, 95, 13), // "QResizeEvent*"
+QT_MOC_LITERAL(9, 109, 10), // "paintEvent"
+QT_MOC_LITERAL(10, 120, 12), // "QPaintEvent*"
+QT_MOC_LITERAL(11, 133, 15), // "getSamplesCount"
+QT_MOC_LITERAL(12, 149, 19), // "getSoftLightSamples"
+QT_MOC_LITERAL(13, 169, 6), // "slotFW"
+QT_MOC_LITERAL(14, 176, 6), // "slotLW"
+QT_MOC_LITERAL(15, 183, 6), // "slotBW"
+QT_MOC_LITERAL(16, 190, 6), // "slotRW"
+QT_MOC_LITERAL(17, 197, 6), // "slotUW"
+QT_MOC_LITERAL(18, 204, 6), // "slotDW"
+QT_MOC_LITERAL(19, 211, 6), // "slotTL"
+QT_MOC_LITERAL(20, 218, 6), // "slotTR"
+QT_MOC_LITERAL(21, 225, 6), // "slotTU"
+QT_MOC_LITERAL(22, 232, 6), // "slotTD"
+QT_MOC_LITERAL(23, 239, 6), // "slotSL"
+QT_MOC_LITERAL(24, 246, 6), // "slotSR"
+QT_MOC_LITERAL(25, 253, 13), // "keyPressEvent"
+QT_MOC_LITERAL(26, 267, 10) // "QKeyEvent*"
 
     },
-    "RayTraceRenderer\0prepareObj\0\0renderRow\0"
-    "Vec3f\0origin\0y\0renderPixel\0paintButtonCheck\0"
-    "drawingButtonCheck\0renderFrame\0force\0"
-    "resizeEvent\0QResizeEvent*\0paintEvent\0"
-    "QPaintEvent*\0slotFW\0slotLW\0slotBW\0"
-    "slotRW\0slotUW\0slotDW\0slotTL\0slotTR\0"
-    "slotTU\0slotTD\0slotSL\0slotSR\0keyPressEvent\0"
-    "QKeyEvent*"
+    "RayTraceRenderer\0prepareObj\0\0"
+    "paintButtonCheck\0drawingButtonCheck\0"
+    "renderFrame\0force\0resizeEvent\0"
+    "QResizeEvent*\0paintEvent\0QPaintEvent*\0"
+    "getSamplesCount\0getSoftLightSamples\0"
+    "slotFW\0slotLW\0slotBW\0slotRW\0slotUW\0"
+    "slotDW\0slotTL\0slotTR\0slotTU\0slotTD\0"
+    "slotSL\0slotSR\0keyPressEvent\0QKeyEvent*"
 };
 #undef QT_MOC_LITERAL
 
@@ -87,42 +84,38 @@ static const uint qt_meta_data_RayTraceRenderer[] = {
 
  // slots: name, argc, parameters, tag, flags
        1,    0,  124,    2, 0x0a /* Public */,
-       3,    2,  125,    2, 0x0a /* Public */,
-       7,    0,  130,    2, 0x0a /* Public */,
-       8,    0,  131,    2, 0x0a /* Public */,
-       9,    0,  132,    2, 0x0a /* Public */,
-      10,    1,  133,    2, 0x0a /* Public */,
-      10,    0,  136,    2, 0x2a /* Public | MethodCloned */,
-      12,    1,  137,    2, 0x0a /* Public */,
-      14,    1,  140,    2, 0x0a /* Public */,
-      16,    0,  143,    2, 0x0a /* Public */,
-      17,    0,  144,    2, 0x0a /* Public */,
-      18,    0,  145,    2, 0x0a /* Public */,
-      19,    0,  146,    2, 0x0a /* Public */,
-      20,    0,  147,    2, 0x0a /* Public */,
-      21,    0,  148,    2, 0x0a /* Public */,
-      22,    0,  149,    2, 0x0a /* Public */,
-      23,    0,  150,    2, 0x0a /* Public */,
-      24,    0,  151,    2, 0x0a /* Public */,
-      25,    0,  152,    2, 0x0a /* Public */,
-      26,    0,  153,    2, 0x0a /* Public */,
-      27,    0,  154,    2, 0x0a /* Public */,
-      28,    1,  155,    2, 0x0a /* Public */,
+       3,    0,  125,    2, 0x0a /* Public */,
+       4,    0,  126,    2, 0x0a /* Public */,
+       5,    1,  127,    2, 0x0a /* Public */,
+       5,    0,  130,    2, 0x2a /* Public | MethodCloned */,
+       7,    1,  131,    2, 0x0a /* Public */,
+       9,    1,  134,    2, 0x0a /* Public */,
+      11,    0,  137,    2, 0x0a /* Public */,
+      12,    0,  138,    2, 0x0a /* Public */,
+      13,    0,  139,    2, 0x0a /* Public */,
+      14,    0,  140,    2, 0x0a /* Public */,
+      15,    0,  141,    2, 0x0a /* Public */,
+      16,    0,  142,    2, 0x0a /* Public */,
+      17,    0,  143,    2, 0x0a /* Public */,
+      18,    0,  144,    2, 0x0a /* Public */,
+      19,    0,  145,    2, 0x0a /* Public */,
+      20,    0,  146,    2, 0x0a /* Public */,
+      21,    0,  147,    2, 0x0a /* Public */,
+      22,    0,  148,    2, 0x0a /* Public */,
+      23,    0,  149,    2, 0x0a /* Public */,
+      24,    0,  150,    2, 0x0a /* Public */,
+      25,    1,  151,    2, 0x0a /* Public */,
 
  // slots: parameters
     QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 4, QMetaType::Int,    5,    6,
     QMetaType::Void,
     QMetaType::Void,
+    QMetaType::Void, QMetaType::Bool,    6,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::Bool,   11,
-    QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 13,    2,
-    QMetaType::Void, 0x80000000 | 15,    2,
-    QMetaType::Void,
-    QMetaType::Void,
-    QMetaType::Void,
-    QMetaType::Void,
+    QMetaType::Void, 0x80000000 | 8,    2,
+    QMetaType::Void, 0x80000000 | 10,    2,
+    QMetaType::Int,
+    QMetaType::Int,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -131,7 +124,11 @@ static const uint qt_meta_data_RayTraceRenderer[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 29,    2,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void, 0x80000000 | 26,    2,
 
        0        // eod
 };
@@ -142,14 +139,16 @@ void RayTraceRenderer::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         RayTraceRenderer *_t = static_cast<RayTraceRenderer *>(_o);
         switch (_id) {
         case 0: _t->prepareObj(); break;
-        case 1: _t->renderRow((*reinterpret_cast< const Vec3f(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2]))); break;
-        case 2: _t->renderPixel(); break;
-        case 3: _t->paintButtonCheck(); break;
-        case 4: _t->drawingButtonCheck(); break;
-        case 5: _t->renderFrame((*reinterpret_cast< bool(*)>(_a[1]))); break;
-        case 6: _t->renderFrame(); break;
-        case 7: _t->resizeEvent((*reinterpret_cast< QResizeEvent*(*)>(_a[1]))); break;
-        case 8: _t->paintEvent((*reinterpret_cast< QPaintEvent*(*)>(_a[1]))); break;
+        case 1: _t->paintButtonCheck(); break;
+        case 2: _t->drawingButtonCheck(); break;
+        case 3: _t->renderFrame((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 4: _t->renderFrame(); break;
+        case 5: _t->resizeEvent((*reinterpret_cast< QResizeEvent*(*)>(_a[1]))); break;
+        case 6: _t->paintEvent((*reinterpret_cast< QPaintEvent*(*)>(_a[1]))); break;
+        case 7: { int _r = _t->getSamplesCount();
+            if (_a[0]) *reinterpret_cast< int*>(_a[0]) = _r; }  break;
+        case 8: { int _r = _t->getSoftLightSamples();
+            if (_a[0]) *reinterpret_cast< int*>(_a[0]) = _r; }  break;
         case 9: _t->slotFW(); break;
         case 10: _t->slotLW(); break;
         case 11: _t->slotBW(); break;

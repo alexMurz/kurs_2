@@ -26,9 +26,9 @@ template <class _T, class _T1, class _T2> _T clamp(_T v, _T1 min, _T2 max) {
   return v;
 }
 
-template<int DIM, class T> 
+template<int DIM, int SIZE, class T> 
 class Vec {
-    T m[DIM];
+    T m[SIZE];
   public:
     // Getter/Setter
     T * getV() { return m; }
@@ -37,11 +37,11 @@ class Vec {
     T & operator [](int i) { return m[i]; }
     
     // Init Zero
-    Vec<DIM, T>() {
+    Vec<DIM, SIZE, T>() {
       for (int i = 0; i < DIM; i++) m[i] = T();
     }
     // From List
-    Vec<DIM, T>(T first, ...) {
+    Vec<DIM, SIZE, T>(T first, ...) {
       m[0] = first;
       va_list vl;
       va_start(vl, first);
@@ -49,8 +49,8 @@ class Vec {
       va_end(vl);
     }
     // Copy
-    template<int D, class C>
-    Vec<DIM, T>(const Vec<D, C> & v) {
+    template<int D, int S, class C>
+    Vec<DIM, SIZE, T>(const Vec<D, S, C> & v) {
       int l = D<DIM ? D : DIM;
       for (int i = 0; i < l; i++) {
         if (typeid(T) == typeid(int) && typeid(C) == typeid(double)) m[i] = int(v[i] + 0.5f);
@@ -59,37 +59,37 @@ class Vec {
       for (int i = l; i < DIM; i++) m[i] = 0.;
     }
     
-    Vec<DIM, T> operator +(const Vec<DIM, T> & v) const {
-      Vec<DIM, T> r;
+    Vec<DIM, SIZE, T> operator +(const Vec<DIM, SIZE, T> & v) const {
+      Vec<DIM, SIZE, T> r;
       for (int i = 0; i < DIM; i++) r[i] = m[i]+v[i];
       return r;
     }
-    Vec<DIM, T> operator -(const Vec<DIM, T> & v) const {
-      Vec<DIM, T> r;
+    Vec<DIM, SIZE, T> operator -(const Vec<DIM, SIZE, T> & v) const {
+      Vec<DIM, SIZE, T> r;
       for (int i = 0; i < DIM; i++) r[i] = m[i]-v[i];
       return r;
     }
-    Vec<DIM, T> operator *(float f) const { 
-      Vec<DIM, T> r(*this);
+    Vec<DIM, SIZE, T> operator *(float f) const { 
+      Vec<DIM, SIZE, T> r(*this);
       for (int i = 0; i < DIM; i++) r[i] *= f;
       return r;
     }
-    Vec<DIM, T> operator /(float f) const { 
-      Vec<DIM, T> r(*this);
+    Vec<DIM, SIZE, T> operator /(float f) const { 
+      Vec<DIM, SIZE, T> r(*this);
       for (int i = 0; i < DIM; i++) r[i] /= f;
       return r;
     }
-    float operator *(const Vec<DIM, T> & v) const {
+    float operator *(const Vec<DIM, SIZE, T> & v) const {
       float r = 0.0f;
       for (int i = 0; i < DIM; i++) r += m[i] * v[i];
       return r;
     }
-    Vec<3, T> operator ^(const Vec<3, T> & v) const {
-      return Vec<3, T>(m[1]*v[2]-m[2]*v[1], m[2]*v[0]-m[0]*v[2], m[0]*v[1]-m[1]*v[0]);
+    Vec<3, 4, T> operator ^(const Vec<3, 4, T> & v) const {
+      return Vec<3, 4, T>(m[1]*v[2]-m[2]*v[1], m[2]*v[0]-m[0]*v[2], m[0]*v[1]-m[1]*v[0]);
     }
 
-    Vec<DIM, T> mul(const Vec<DIM, T> & v) const {
-      Vec<DIM, T> r(*this);
+    Vec<DIM, SIZE, T> mul(const Vec<DIM, SIZE, T> & v) const {
+      Vec<DIM, SIZE, T> r(*this);
       for (int i = 0; i < DIM; i++) r[i] *= v[i];
       return r;
     }
@@ -111,31 +111,31 @@ class Vec {
     
     float length2() const { return (*this)*(*this); }
     float length() const { return sqrt(length2()); }
-    Vec<DIM, T> & normalize() { return (*this) = (*this) / length(); }
-    Vec<DIM, T> normalized() const { return Vec<DIM, T>(*this) / length(); }
+    Vec<DIM, SIZE, T> & normalize() { return (*this) = (*this) / length(); }
+    Vec<DIM, SIZE, T> normalized() const { return Vec<DIM, SIZE, T>(*this) / length(); }
 };
 
-template<int D, class C>
-Vec<D, C> operator*(float f, const Vec<D, C> & v) { return v*f; }
+template<int D, int S, class C>
+Vec<D, S, C> operator*(float f, const Vec<D, S, C> & v) { return v*f; }
 
-template<int D, class C>
-Vec<D, C> operator-(const Vec<D, C> & v) { return v*-1; }
+template<int D, int S, class C>
+Vec<D, S, C> operator-(const Vec<D, S, C> & v) { return v*-1; }
 
 template<class C>
-Vec<3, C> reflect(const Vec<3, C> &v, const Vec<3, C> &n) {
+Vec<3, 4, C> reflect(const Vec<3, 4, C> &v, const Vec<3, 4, C> &n) {
   return v - 2.f * v*n * n;
 }
 
-typedef Vec<2, double> Vec2f;
-typedef Vec<2, int>    Vec2i;
-typedef Vec<3, double> Vec3f;
-typedef Vec<3, int>    Vec3i;
-typedef Vec<4, double> Vec4f;
-typedef Vec<4, int>    Vec4i;
+typedef Vec<2, 2, double> Vec2f;
+typedef Vec<2, 2, int>    Vec2i;
+typedef Vec<3, 4, double> Vec3f;
+typedef Vec<3, 4, int>    Vec3i;
+typedef Vec<4, 4, double> Vec4f;
+typedef Vec<4, 4, int>    Vec4i;
 
 // Color
-typedef Vec<3, int>   Col3i;
-typedef Vec<3, double>   Col3f;
+typedef Vec<3, 4, int>   Col3i;
+typedef Vec<3, 4, double>   Col3f;
 
 Col3i makeCol3i(const int & c);
 Col3i makeCol3i(const Col3f & c);
@@ -210,14 +210,6 @@ public:
     
     static Matrix4x4 createPerspective(float fovy, float aspect, float n, float f) {
         Matrix4x4 m;
-        
-//        float top = n * tan(fovy/* * 3.1415926 / 360.0f*/);
-//        float bottom = -top;
-//        float left = bottom * aspect;
-//        float right = top * aspect;
-        
-//        return createFrustum(left, right, bottom, top, n, f);
-        
         float t = tan(fovy/2);
         m[0][1] = m[0][2] = m[0][3] = 0;
         m[1][0] = m[1][2] = m[1][3] = 0;
@@ -290,12 +282,12 @@ public:
     }
     
     // Will autocut matrix
-    template <int DIM, class TYPE>
-    Vec<DIM, TYPE> operator *(const Vec<DIM, TYPE> & v) const { return mul(v); }
+    template <int DIM, int SIZE, class TYPE>
+    Vec<DIM, SIZE, TYPE> operator *(const Vec<DIM, SIZE, TYPE> & v) const { return mul(v); }
     
-    template <int DIM, class TYPE>
-    Vec<DIM, TYPE> mul(const Vec<DIM, TYPE> & v) const {
-      Vec<DIM, TYPE> r;
+    template <int DIM, int SIZE, class TYPE>
+    Vec<DIM, SIZE, TYPE> mul(const Vec<DIM, SIZE, TYPE> & v) const {
+      Vec<DIM, SIZE, TYPE> r;
       for (int i = 0; i < DIM; i++) {
         r[i] = 0;
         for (int j = 0; j < DIM; j++) {
@@ -305,9 +297,9 @@ public:
       return r;
     }
 
-    template <int DIM, class TYPE>
-    Vec<DIM, TYPE> mulDbg(const Vec<DIM, TYPE> & v) const {
-      Vec<DIM, TYPE> r;
+    template <int DIM, int SIZE, class TYPE>
+    Vec<DIM, SIZE, TYPE> mulDbg(const Vec<DIM, SIZE, TYPE> & v) const {
+      Vec<DIM, SIZE, TYPE> r;
       for (int i = 0; i < DIM; i++) {
         r[i] = 0;
         for (int j = 0; j < DIM; j++) {

@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QLabel>
+#include <QComboBox>
 
 #include <QFuture>
 
@@ -21,7 +22,7 @@
 
 typedef struct {
   cl_float3 v[3];
-  cl_float3 n;
+  cl_float3 n, sn[3];
   cl_float3 diff, spec;
   cl_float3 refl;
   cl_int isMirror;
@@ -48,35 +49,29 @@ class RayTraceRenderer : public QWidget {
     CLTriangle3D * clTriangles;
     
     // OpenCL Buffers
-    cl::Buffer b_viewport, b_origin, b_ray, b_triangles, b_trianglesCount, b_frame, b_cout;
+    cl::Buffer b_viewport, b_origin, b_ray, b_triangles, b_trianglesCount, b_frame;
     
     void resetLightIfNeeded();
     int lightCount;
     cl::Buffer b_light, b_lightCount;
     
-    bool sendRay(const Vec3f & origin, const Vec3f & ray, float maxDistance = MAXDISTANCE, const Triangle3D * skip = 0);
-    bool sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & point, float & dist, Triangle3D *& triangle, float maxDistance = MAXDISTANCE, Triangle3D * skip = 0);
-    bool intersect(//const Matrix4x4 & model, 
-                   Triangle3D * tr, const Vec3f &Origin, const Vec3f &Ray, float MaxDistance, float &Distance, Vec3f &Point);
-    Col3f rayTrace(const Vec3f & origin, const Vec3f & ray, int jump = 1, Triangle3D * skip = 0);
-    
-    Vec3f lightingCalc(const Vec3f& p, const Vec3f& n, const Triangle3D * triangle);
-    
     Matrix4x4 biasMatrix, biasMatrixInverse;
     Matrix4x4 proj, view, rayMatrix, vpMatrix;
     QImage * frame;
-    
+    QComboBox * samplesBox, * softLightBox;
     QFrame * uiFrame;
     QPushButton * drawingButton; // Loop painting
     QPushButton * frameButton; // Paint 1 frame
+    
     QPushButton * prepareObjects; // Prepare All Objects
-    QCheckBox   * useOpenCL;
     
     QFuture<void> updateFuture;
     
+    int buttonsState; // 0 - none, 1 - frame, 2 - drawing, 3 - all
+    
     union {
-        struct { int width, height; };
-        int viewport[2];
+        struct { int width, height, samplesInput, softLightInput; };
+        int viewport[4];
     };
     
   public:
@@ -86,15 +81,15 @@ class RayTraceRenderer : public QWidget {
     
     void prepareObj();
     
-    void renderRow(const Vec3f & origin, int y);
-    void renderPixel();
-    
     void paintButtonCheck();
     void drawingButtonCheck();
     
     void renderFrame(bool force = false);
     void resizeEvent(QResizeEvent *);
     void paintEvent(QPaintEvent *);
+    
+    int getSamplesCount();
+    int getSoftLightSamples();
     
     /*
      * Matrix Control Slots

@@ -20,6 +20,25 @@
 class BBoxRenderer : public QWidget {
     Q_OBJECT
     
+    
+    typedef struct {
+      cl_int enabled;
+      cl_float3 position;
+      cl_float3 diffuse;
+      cl_float3 specular;
+      cl_float  energy;
+      cl_int    isEye;
+      cl_float3 attenuation;
+    } clLight_t;
+    
+    typedef struct {
+        cl_double3 diffuseColor, specularColor;
+        cl_double3 reflection;
+        cl_double  reflectivity, shininess;
+        cl_int     isMirror;
+    } clMaterial;
+    
+    
     // Transforming
     float * zbuffer;
     bool mutexMatrix;
@@ -36,7 +55,7 @@ class BBoxRenderer : public QWidget {
     cl::Kernel pixelKernel;
     
     // OpenCL Buffers
-    cl::Buffer b_viewport;
+    cl::Buffer b_settings;
     cl::Buffer b_matrixes;
     cl::Buffer b_v;
     cl::Buffer b_V;
@@ -45,6 +64,11 @@ class BBoxRenderer : public QWidget {
     cl::Buffer b_zbuffer;
     cl::Buffer b_frame;
     cl::Buffer b_material;
+    cl::Buffer b_light;
+    cl::Buffer b_lightCount;
+    
+    void resetLightIfNeeded();
+    int lightCount;
     
     void prepareCL();
     
@@ -59,7 +83,8 @@ class BBoxRenderer : public QWidget {
     QFrame * uiFrame;
     QPushButton * drawingButton; // Loop painting
     QPushButton * frameButton; // Paint 1 frame
-    QCheckBox   * useCLCheckBox;
+    QCheckBox   * useCLCheckBox, * useSmoothShading;
+    QLabel * camLabel;
     
     QFuture<void> updateFuture;
     bool mutexPaint, firstRun;
@@ -68,9 +93,10 @@ class BBoxRenderer : public QWidget {
     QPushButton * setMatrixButton;
     
     union {
-      struct { int width, height; };
-      int viewport[2];
+      struct { int width, height, useSS; };
+      int settings[2];
     };
+    static const int settingsSize = 3;
     
   public:
     explicit BBoxRenderer();

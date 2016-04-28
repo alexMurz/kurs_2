@@ -19,6 +19,7 @@ namespace Math {
   }
 
   Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P);
+  
 }
 
 #endif // INFO

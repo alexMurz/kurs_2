@@ -26,66 +26,87 @@ MainWindow::MainWindow(QWidget *parent)
   connect(raycastRenderer, SIGNAL(clicked(bool)), SLOT(runRaycastRenderer()));  
   
   int h = 50;
+  
   QLabel * l = new QLabel(this);
+  l->setStyleSheet("QLabel {background:black;}");
+  l->setGeometry(0, h+24, w, 2);
+
+  sceneLabel = new QLabel(thus);
+  sceneLabel->setAlignment(Qt::AlignCenter);
+  sceneLabel->setGeometry(0, h+24, w, 23);
+  sceneLabel->setText("Сцена");
+  
+  open = new QPushButton(this);
+  open->setGeometry(0, h+50, w, 25);
+  open->setText("Открыть файл ...");
+  connect(open, SIGNAL(clicked(bool)), SLOT(openNewScene()));
+  
+  editor = new QPushButton(this);
+  editor->setGeometry(0, h+75, w, 25);
+  editor->setText("Редактировать сцену");
+  connect(editor, SIGNAL(clicked(bool)), SLOT(editScene()));
+  
+  h += 100;
+  
+  l = new QLabel(this);
   l->setStyleSheet("QLabel {background:black;}");
   l->setGeometry(0, h+24, w, 2);
 
   l = new QLabel(thus);
   l->setAlignment(Qt::AlignCenter);
   l->setGeometry(0, h+24, w, 23);
-  l->setText("Lighting");
+  l->setText("Освещение");
   
-  lightList = new QListWidget(this);
-  lightList->setGeometry(0, h+50, w, 400);
-  connect(lightList, SIGNAL(activated(QModelIndex)), SLOT(showLightInfo(QModelIndex)));
-  resetLightList();
+  table = new LightTable(this);
+  table->setGeometry(0, h+50, w, 500);
+  
+  Info::scene.updateOpenCLLights();
 }
-
-
-void MainWindow::resetLightList() {
-  lightList->clear();
-  foreach (const LightSource & l, Info::scene.lights) {
-    
-    QString s;
-    s.append( l.enabled ? "+ " : "- " );
-    
-    s.append("O:");
-    s.append(QString::number(l.origin[0])); s.append(":");
-    s.append(QString::number(l.origin[1])); s.append(":");
-    s.append(QString::number(l.origin[2])); s.append(", ");
-    
-    s.append("D:"); 
-    s.append(QString::number(l.diffuseLight[0])); s.append(":");
-    s.append(QString::number(l.diffuseLight[1])); s.append(":");
-    s.append(QString::number(l.diffuseLight[2])); s.append(", ");
-    
-    s.append("E:"); s.append(QString::number(l.energy));
-    s.append(", ");
-    
-    s.append("Att:"); 
-    s.append(QString::number(l.attenuation[0])); s.append(":");
-    s.append(QString::number(l.attenuation[1])); s.append(":");
-    s.append(QString::number(l.attenuation[2])); s.append(", ");    
-    
-    s.append("isEye:"); s.append( l.isEye?'1':'0' );
-    
-    lightList->addItem(s);
-  }
-}
-
-
-void MainWindow::showLightInfo(QModelIndex idx) {
-  LightSource & l = Info::scene.lights[idx.row()];
-  LightView * lightView = new LightView(&l, this);
-  lightView->show();
-}
-
 
 MainWindow::~MainWindow() {}
 
+void MainWindow::openNewScene() {
+  QFileDialog * fd = new QFileDialog();
+  fd->setAcceptMode(QFileDialog::AcceptOpen);
+  QString path = fd->getOpenFileName();
+  path.remove(path.lastIndexOf("."), path.length() - path.lastIndexOf("."));
+  qDebug() << path;
+  
+  QString objPath = path + ".obj";
+  QString mtlPath = path + ".mtl";
+  QString sceneName = path.mid(path.lastIndexOf("/"), path.length() - path.lastIndexOf("/"));
+  qDebug () << sceneName;
+  
+  if (!QFile(objPath).exists() ) {
+    qDebug() << "obj not exist";
+    return;
+  } 
+  if (!QFile(mtlPath).exists()) {
+    qDebug() << "mtl not exist";
+    return;
+  }
+  
+  sceneLabel->setText(QString("Сцена (%1)").arg(sceneName));
+  qDebug() << "setText";
+  
+  std::ifstream obj(objPath.toStdString().c_str());
+  std::ifstream mtl(mtlPath.toStdString().c_str());
+  Object3D *object = Object3D::fromObj(obj, mtl);
+  
+  qDebug() << "Create obj";
+  
+  Info::scene.objects.clear();
+  Info::scene.objects.push_back(*object);  
+  
+  qDebug() << "Finish";
+}
+
+void MainWindow::editScene() {
+  
+}
+
 void MainWindow::runRayTraceRenderer () {
   (new RayTraceRenderer)->show();
-  resetLightList();
 }
 
 void MainWindow::runbboxRenderer() {

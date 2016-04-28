@@ -106,14 +106,26 @@ void o_polygon(Object3D *obj, Material * mat,
   s_removeWhiteSpaces(s);
   std::vector<std::string> e = s_split(s, ' ');
   Vec3f v[3], n[3];
+  int vidx[3], nidx;
+//  Triangle3D * t = new Triangle3D();
+  
   for (int i = 1; i < 4; i++) {
     s_removeWhiteSpaces(e[i]);
     std::vector<std::string> args = s_split(e[i], '/');
+    
+    vidx[i-1] = s_toInt(args[0]);
+    nidx = s_toInt(args[2]);
+    
     v[i-1] = vert[s_toInt(args[0]) - 1];
     n[i-1] = norm[s_toInt(args[2]) - 1];
   }
   Vec3f nn = (n[0] + n[1] + n[2]).normalized();
+  
   obj->add(v[0], v[1], v[2], nn, mat);
+  Triangle3D * t = obj->getTriangles()[obj->getTriangles().size()-1];
+  t->sn[0] = n[0];
+  t->sn[1] = n[1];
+  t->sn[2] = n[2];
 }
 
 std::string o_usemtl(std::string s) {
@@ -146,7 +158,7 @@ Object3D * Object3D::fromObj(std::ifstream & obj, std::ifstream & mtl) {
     if (startWith("Ka")) continue;
     if (startWith("Kd")) mat->diffuseReflection = _getVector(line);
     if (startWith("Ks")) mat->specularReflection = _getVector(line);
-    if (startWith("Ni")) mat->shininess = _getDouble(line);
+    if (startWith("Ns")) mat->shininess = _getDouble(line);
     if (startWith("Kr")) mat->reflection = _getVector(line);
     if (startWith("Ur")) mat->isMirror = _getInt(line);
     if (startWith("Fr")) mat->reflectivity = _getDouble(line);
@@ -165,11 +177,26 @@ Object3D * Object3D::fromObj(std::ifstream & obj, std::ifstream & mtl) {
   
 #undef startWith
   
-  for (std::map<std::string, Material *>::iterator it = materialMap.begin(); it != materialMap.end(); it++) {
-    Material * m = (Material *) it->second;
-    Vec3i v = makeCol3i(m->diffuseReflection);
-//    std::cout << it->first << " " << v[0] << " " << v[1] << " " << v[2] << "\n";
-  }
+  // Smooth normals
+//  for (int i = 0; i < object->getTriangles().size(); i++) {
+//    Triangle3D * t = object->getTriangles()[i];
+    
+//    // for each vertex of triangle *t
+//    for (int in = 0; in < 3; in++) {
+//      t->sn[in] = t->n; // memset vertex normal
+      
+//      // serch for vertexes with same index
+//      for (int j = 0; j < object->getTriangles().size(); j++) {
+//        if (i == j) continue;
+//        Triangle3D * t2 = object->getTriangles()[j];
+//        for (int jn = 0; jn < 3; jn++) {
+//          if (t->vidx[in] == t2->vidx[jn]) t->sn[in] = t->sn[in] + t2->n;
+//        }
+//      }
+      
+//      t->sn[in].normalize();
+//    }
+//  }
   
   return object;
 }

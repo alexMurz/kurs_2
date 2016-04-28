@@ -17,6 +17,8 @@ int getMilliCount(){
 
 ///////////////////////////////////////////////////
 
+static const char * camLabelFormat = "R(%5.1f, %5.1f, %5.1f)\nP(%5.2f, %5.2f, %5.2f)";
+
 BBoxRenderer::BBoxRenderer() : QWidget(0), zbuffer(0), frame(0) {
   setMinimumWidth(400);
   setMinimumHeight(300);
@@ -26,7 +28,7 @@ BBoxRenderer::BBoxRenderer() : QWidget(0), zbuffer(0), frame(0) {
   
 //  /*
 //  view = Matrix4x4::createTranslate(0, -7,-21);
-  view = Matrix4x4::createTranslate(0, -2, 0);
+  view = Matrix4x4::createTranslate(0, 0, -4);
 //  view = view * Matrix4x4::createYRotation(45 * 3.1415 / 180.0f);
   /* */
   
@@ -52,12 +54,24 @@ BBoxRenderer::BBoxRenderer() : QWidget(0), zbuffer(0), frame(0) {
   useCLCheckBox->setGeometry(0, 70, 25, 25);
   QLabel * useCLLabel = new QLabel(uiFrame);
   useCLLabel->setGeometry(25, 70, 175, 25);
-  useCLLabel->setText("use OpenCL");
+  useCLLabel->setText("OpenCL");
+  
+  int l = 75;
+  useSmoothShading = new QCheckBox(uiFrame);
+  useSmoothShading->setGeometry(l, 70, 25, 25);
+  QLabel * useSSLabel = new QLabel(uiFrame);
+  useSSLabel->setGeometry(l+25, 70, 175, 25);
+  useSSLabel->setText("SmoothShading");
+  
   
   setMatrixButton = new QPushButton(uiFrame);
   setMatrixButton->setGeometry(25, 230, 150, 30);
   setMatrixButton->setText("Set View Matrix");
   connect(setMatrixButton, SIGNAL(clicked(bool)), SLOT(setMatrix()));
+  
+  camLabel = new QLabel(uiFrame);
+  camLabel->setGeometry(0, 250, 200, 60);
+  camLabel->setText("R(000.0, 000.0, 000.0)\nP(00.0, 00.0, 00.0)");
   
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
@@ -95,92 +109,58 @@ void BBoxRenderer::updateMatView() {
  */
 static const float turnSpeed = 5.0 * 3.1415 / 180.0;
 static const float moveSpeed = 0.25f;
-void BBoxRenderer::slotTL() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
+void BBoxRenderer::slotTL() {
   view = Matrix4x4::createYRotation(-turnSpeed) * view; 
   updateMatView();
-  mutexMatrix = false; 
 }
-void BBoxRenderer::slotFW() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
+void BBoxRenderer::slotFW() {
   view.translate(0, 0, moveSpeed); 
   updateMatView();
-  mutexMatrix = false;
 }
-void BBoxRenderer::slotTR() { 
-  while(mutexMatrix); 
-  mutexMatrix = true;
+void BBoxRenderer::slotTR() {
   view = Matrix4x4::createYRotation( turnSpeed) * view; 
   updateMatView();
-  mutexMatrix = false; 
 }
-void BBoxRenderer::slotLW() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
+void BBoxRenderer::slotLW() {
   view.translate( moveSpeed, 0, 0); 
   updateMatView();
-  mutexMatrix = false; 
 }
-void BBoxRenderer::slotBW() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
+void BBoxRenderer::slotBW() {
   view.translate( 0, 0,-moveSpeed); 
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotRW() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
   view.translate(-moveSpeed, 0, 0); 
   updateMatView();
-  mutexMatrix = false; 
 }
-void BBoxRenderer::slotSL() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
+void BBoxRenderer::slotSL() {
   view = view * Matrix4x4::createYRotation(-turnSpeed);
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotSR() { 
-  while(mutexMatrix); 
-  mutexMatrix = true; 
   view = view * Matrix4x4::createYRotation( turnSpeed); 
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotTU() {
-  while(mutexMatrix); 
-  mutexMatrix = true;
   view = Matrix4x4::createXRotation(-turnSpeed) * view; 
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotTD() {
-  while(mutexMatrix); 
-  mutexMatrix = true;
   view = Matrix4x4::createXRotation( turnSpeed) * view; 
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotUW() {
-  while(mutexMatrix); 
-  mutexMatrix = true; 
   view.translate(0,-moveSpeed, 0);
   updateMatView();
-  mutexMatrix = false; 
 }
 void BBoxRenderer::slotDW() {
-  while(mutexMatrix);
-  mutexMatrix = true;
   view.translate(0, moveSpeed, 0);
   updateMatView();
-  mutexMatrix = false;
 }
 
 void BBoxRenderer::keyPressEvent(QKeyEvent * e) {
+  while (mutexMatrix);
+  mutexMatrix = true;
   int k = e->key();
   switch (k) {
     case Qt::Key_W: slotFW(); break;
@@ -198,7 +178,23 @@ void BBoxRenderer::keyPressEvent(QKeyEvent * e) {
     case Qt::Key_R: slotTU(); break;
     case Qt::Key_F: slotTD(); break;      
   }
+  mutexMatrix = false;
   updateMatView();
+  
+  float x, y, z;
+  float rx, ry, rz;
+  
+  x = view[0][3];
+  y = view[1][3];
+  z = view[2][3];
+  
+  rx = asin(-view[1][2])*180.0/3.1415926;
+  ry = asin( view[0][2])*180.0/3.1415926;
+  rz = asin( view[1][0])*180.0/3.1415926;
+  
+  char c[255];
+  sprintf(c, camLabelFormat, x, y, z, rx, ry, rz);
+  camLabel->setText( c );
 }
 
 void BBoxRenderer::prepareCL() {
@@ -245,23 +241,41 @@ void BBoxRenderer::prepareCL() {
   }
   
   // create buffers on the device
-  b_viewport = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_int)*2);
+  b_settings = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_int)*settingsSize);
   b_matrixes = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float4)*4);
   b_v = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float4)*3);
   b_V = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float4)*3);
-  b_n = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float3));
-  b_material = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_int)*2);
+  b_n = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_float3)*4);
+  b_material = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(clMaterial));
+  b_lightCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(cl_int));
   
   //create queue to which we will push commands for the device.
   queue = cl::CommandQueue(context, device[0]);
   pixelKernel = cl::Kernel(program, "triangleRender");
   
-  pixelKernel.setArg(0, b_viewport);
+  pixelKernel.setArg(0, b_settings);
   pixelKernel.setArg(1, b_matrixes);
   pixelKernel.setArg(2, b_v);
   pixelKernel.setArg(3, b_V);
   pixelKernel.setArg(4, b_n);
   pixelKernel.setArg(7, b_material);
+  pixelKernel.setArg(9, b_lightCount);
+}
+
+void BBoxRenderer::resetLightIfNeeded() {
+  if (lightCount != Info::scene.lights.size()) {
+    lightCount = Info::scene.lights.size();
+    
+    b_light = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(ClLightSource)*lightCount);
+    pixelKernel.setArg(8, b_light);
+    
+    queue.enqueueWriteBuffer(b_lightCount, CL_TRUE, 0, sizeof(int), &lightCount);
+    
+    qDebug() << "enqueue new light info : size =" << lightCount;
+    qDebug() << "light[0] =" << sizeof(ClLightSource);
+  }
+  
+  queue.enqueueWriteBuffer(b_light, CL_TRUE, 0, sizeof(ClLightSource)*lightCount, &Info::scene.lightsAsOpenCL[0]);
 }
 
 void BBoxRenderer::drawingButtonCheck() {
@@ -283,10 +297,6 @@ Vec4f BBoxRenderer::completeProjection(Vec4f v, float & sign) {
   v[1] = (v[1]*0.5+0.5)*height;
   v[2] = v[2]*0.5f + 0.5f;
 //  v[2] = (v[2]*0.5+0.5);
-
-    
-  qDebug() << v.toString().c_str();
-  
 //  if (v[2] < 0) v[1] = -v[1];
   
   return v;
@@ -369,7 +379,7 @@ void BBoxRenderer::renderPixel() {
       
       for (int x = bboxmin[0]; x <= bboxmax[0]; x++) {
         for (int y = bboxmin[1]; y <= bboxmax[1]; y++) {
-          Vec3f c = Math::barycentric(v[0], v[1], v[2], Vec2i(x, y));
+          Vec3f c = Math::barycentric(Vec2f(v[0]), Vec2f(v[1]), Vec2f(v[2]), Vec2f((float)x, (float)y));
           if (c[0]<0 || c[1]<0 || c[2]<0) continue;
           
           float z = c[0]*v[0][2] + c[1]*v[1][2] + c[2]*v[2][2];
@@ -394,18 +404,25 @@ void BBoxRenderer::renderPixel() {
 void BBoxRenderer::renderPixelCL() {
   int start = getMilliCount();
   
+  resetLightIfNeeded();
+  
+  while (mutexMatrix);
+  mutexMatrix = true;  
+  
   const int & w = width;
   const int & h = height;
   const int s = w * h;
+  useSS = useSmoothShading->isChecked();
   
-  queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(cl_int)*2, viewport);
+  queue.enqueueWriteBuffer(b_settings, CL_TRUE, 0, sizeof(cl_int)*settingsSize, settings);
   queue.enqueueWriteBuffer(b_frame, CL_TRUE, 0, sizeof(cl_int)*s, frame->bits());
   queue.enqueueWriteBuffer(b_zbuffer, CL_TRUE, 0, sizeof(cl_float)*s, zbuffer);
   
-  float * matrixes = new float[4*4*2];
+  float * matrixes = new float[4*4];
   float * v = new float[3*4];
   float * V = new float[3*4];
-  float * n = new float[3];
+  cl_float3 * n = new cl_float3[4];
+  
   foreach (const Object3D & object, Info::scene.objects) {
     
     Matrix4x4 mv = view * object.getModel();
@@ -413,7 +430,6 @@ void BBoxRenderer::renderPixelCL() {
     Matrix4x4 normalMatrix = mv.inversed().transposed();
     
     for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) matrixes[i*4+j] = mv[i][j];
-    for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) matrixes[i*4+j+16] = normalMatrix[i][j];
     
     foreach (Triangle3D * triangle, object.getTriangles()) {
       
@@ -423,10 +439,13 @@ void BBoxRenderer::renderPixelCL() {
         for (int j = 0; j < 4; j++) v[i*4+j] = vert[j];
         Vec4f Vert = mv * triangle->v[i];
         for (int j = 0; j < 4; j++) V[i*4+j] = Vert[j];
+        
+        Vec3f norm = normalMatrix * triangle->sn[i];
+        for (int j = 0; j < 3; j++) n[i].s[j] = norm[j];
       }
-      
       Vec3f norm = normalMatrix * triangle->n;
-      for (int i = 0; i < 3; i++) n[i] = norm[i];
+      for (int j = 0; j < 3; j++) n[3].s[j] = norm[j];
+      
       
       Vec2i bboxmin = Vec2i(width, height);
       Vec2i bboxmax = Vec2i(0, 0);
@@ -447,16 +466,20 @@ void BBoxRenderer::renderPixelCL() {
       int tX = bboxmin[0],      tY = bboxmin[1],
           tW = bboxmax[0]-tX+1, tH = bboxmax[1]-tY+1;
       
-      queue.enqueueWriteBuffer(b_matrixes, CL_TRUE, 0, sizeof(cl_float4)*4*2, matrixes);
+//      qDebug() << triangle->material->shininess;
+      
+      queue.enqueueWriteBuffer(b_matrixes, CL_TRUE, 0, sizeof(cl_float4)*4, matrixes);
       queue.enqueueWriteBuffer(b_v, CL_TRUE, 0, sizeof(cl_float)*4*3, v);
       queue.enqueueWriteBuffer(b_V, CL_TRUE, 0, sizeof(cl_float4)*3, V);
-      queue.enqueueWriteBuffer(b_n, CL_TRUE, 0, sizeof(cl_float3), n);
-      queue.enqueueWriteBuffer(b_material, CL_TRUE, 0, sizeof(cl_int)*2, triangle->material);
+      queue.enqueueWriteBuffer(b_n, CL_TRUE, 0, sizeof(cl_float3)*4, n);
+      queue.enqueueWriteBuffer(b_material, CL_TRUE, 0, sizeof(clMaterial), triangle->material);
       
       queue.enqueueNDRangeKernel(pixelKernel, cl::NDRange(tX, tY), cl::NDRange(tW, tH), cl::NullRange);
       queue.finish();
     }
   }
+  
+  mutexMatrix = false;
   
   delete matrixes;
   delete v;
@@ -520,7 +543,6 @@ void BBoxRenderer::resizeEvent(QResizeEvent * e) {
   float fovy = 45*3.1415/180.0f;
   float aspect = float(width)/height;
   proj = Matrix4x4::createPerspective(fovy, aspect, 0.1f, 100.0f);
-//  proj = proj.transposed();
   
   if (zbuffer) delete zbuffer;
   zbuffer = new float[width*height];

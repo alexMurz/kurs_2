@@ -9,6 +9,7 @@
 
 // Rasterize Info
 struct Material {
+
     Col3f diffuseReflection, specularReflection;
     Col3f reflection;
     double reflectivity, shininess;
@@ -30,6 +31,9 @@ struct Triangle3D {
     Vec4f v[3];
     Vec3f n;
     Material * material;
+    
+    // Smoothing
+    Vec3f sn[3];
 
     Triangle3D() {}
     Triangle3D(Vec3f v1, Vec3f v2, Vec3f v3, Vec3f vn, Material * material) {
