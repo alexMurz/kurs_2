@@ -14,6 +14,7 @@ struct Material {
     Col3f reflection;
     double reflectivity, shininess;
     int   isMirror;
+    double transparency;
     
     Material(const int &diffuse = 0xFFFFFF, const int &specular = 0xFFFFFF) : 
       diffuseReflection(makeCol3f(diffuse)), specularReflection(makeCol3f(specular)) {}
@@ -34,6 +35,8 @@ struct Triangle3D {
     
     // Smoothing
     Vec3f sn[3];
+    
+    Matrix4x4 * modelRef;
 
     Triangle3D() {}
     Triangle3D(Vec3f v1, Vec3f v2, Vec3f v3, Vec3f vn, Material * material) {

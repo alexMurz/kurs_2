@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QComboBox>
+#include <QLineEdit>
 
 #include <QFuture>
 
@@ -21,12 +22,15 @@
 
 
 typedef struct {
-  cl_float3 v[3];
-  cl_float3 n, sn[3];
+  cl_float3 v0, v1, v2;
+  cl_float3 n, n0, n1, n2;
   cl_float3 diff, spec;
   cl_float3 refl;
   cl_int isMirror;
-  cl_float reflectivity, shininess;
+  cl_float reflectivity, shininess, transparency;
+  cl_float refraction;
+  
+  cl_float3 min, max;
 } CLTriangle3D;
 
 class RayTraceRenderer : public QWidget {
@@ -50,6 +54,16 @@ class RayTraceRenderer : public QWidget {
     
     // OpenCL Buffers
     cl::Buffer b_viewport, b_origin, b_ray, b_triangles, b_trianglesCount, b_frame;
+    cl::Buffer b_kdTree, b_kdTreeSize, b_kdTreeStart, b_kdTreeStartSize, b_kdTreeLength, b_kdTreeLengthSize, b_kdParams;
+    
+    // kD-tree
+    std::vector<int> kdTree; // As Vector (actually 3D Vector)
+    std::vector<int> kdTreeStart; // Contain amount of triangles per 3D Node of kdTree
+    std::vector<int> kdTreeLength;
+    union {
+      struct { float kdXStart, kdYStart, kdZStart, kdXLength, kdYLength, kdZLength, kdStep; };
+      float kdParams[7];
+    };
     
     void resetLightIfNeeded();
     int lightCount;
@@ -58,19 +72,26 @@ class RayTraceRenderer : public QWidget {
     Matrix4x4 biasMatrix, biasMatrixInverse;
     Matrix4x4 proj, view, rayMatrix, vpMatrix;
     QImage * frame;
-    QComboBox * samplesBox, * softLightBox;
     QFrame * uiFrame;
+    
+    QPushButton * ssaax1, * ssaax4, * ssaax9, * ssaax16;
+    int ssaa;
+    QPushButton * quad, * half, * full; // Quality
+    int quality;
+    
     QPushButton * drawingButton; // Loop painting
     QPushButton * frameButton; // Paint 1 frame
     
     QPushButton * prepareObjects; // Prepare All Objects
     
     QFuture<void> updateFuture;
+    QLineEdit * matView[16];
+    QPushButton * setMatrixButton;
     
     int buttonsState; // 0 - none, 1 - frame, 2 - drawing, 3 - all
     
     union {
-        struct { int width, height, samplesInput, softLightInput; };
+        struct { int width, height, samplesInput, unused; };
         int viewport[4];
     };
     
@@ -88,12 +109,51 @@ class RayTraceRenderer : public QWidget {
     void resizeEvent(QResizeEvent *);
     void paintEvent(QPaintEvent *);
     
+    
+    // Quality
     int getSamplesCount();
-    int getSoftLightSamples();
+    void setQuality() {
+      if (sender() == quad) {
+        quality = 0;
+        quad->setEnabled(false); half->setEnabled(true); full->setEnabled(true); 
+      } else if (sender() == half) {
+        quality = 1;
+        quad->setEnabled(true); half->setEnabled(false); full->setEnabled(true); 
+      } else if (sender() == full) { 
+        quality = 2;
+        quad->setEnabled(true); half->setEnabled(true); full->setEnabled(false);
+      }
+    }
+    void setSamples() {
+      if (sender() == ssaax1) {
+        ssaa = 0;
+        ssaax1->setEnabled(false); ssaax4->setEnabled(true); ssaax9->setEnabled(true); ssaax16->setEnabled(true); 
+      } else if (sender() == ssaax4) {
+        ssaa = 1;
+        ssaax1->setEnabled(true); ssaax4->setEnabled(false); ssaax9->setEnabled(true); ssaax16->setEnabled(true); 
+      } else if (sender() == ssaax9) {
+        ssaa = 2;
+        ssaax1->setEnabled(true); ssaax4->setEnabled(true); ssaax9->setEnabled(false); ssaax16->setEnabled(true); 
+      } else if (sender() == ssaax16) {
+        ssaa = 3;
+        ssaax1->setEnabled(true); ssaax4->setEnabled(true); ssaax9->setEnabled(true); ssaax16->setEnabled(false); 
+      }
+    }
     
     /*
      * Matrix Control Slots
      */
+    void mousePressEvent(QMouseEvent *) {
+      for (int i = 0; i < 16; i++)
+        if (focusWidget() == matView[i])
+          focusWidget()->clearFocus();
+    }
+    void setMatrix() {
+      for (int i = 0; i < 16; i++) {
+        view.v[i] = matView[i]->text().toFloat();
+      }
+    }
+    void updateMatView();
     void slotFW(); // Right
     void slotLW(); // Left
     void slotBW(); // Back

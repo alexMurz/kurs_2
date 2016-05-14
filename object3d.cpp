@@ -119,9 +119,9 @@ void o_polygon(Object3D *obj, Material * mat,
     v[i-1] = vert[s_toInt(args[0]) - 1];
     n[i-1] = norm[s_toInt(args[2]) - 1];
   }
-  Vec3f nn = (n[0] + n[1] + n[2]).normalized();
+  Vec3f newn = (v[2]-v[0])^(v[2]-v[1]);
   
-  obj->add(v[0], v[1], v[2], nn, mat);
+  obj->add(v[0], v[1], v[2], newn, mat);
   Triangle3D * t = obj->getTriangles()[obj->getTriangles().size()-1];
   t->sn[0] = n[0];
   t->sn[1] = n[1];
@@ -162,6 +162,7 @@ Object3D * Object3D::fromObj(std::ifstream & obj, std::ifstream & mtl) {
     if (startWith("Kr")) mat->reflection = _getVector(line);
     if (startWith("Ur")) mat->isMirror = _getInt(line);
     if (startWith("Fr")) mat->reflectivity = _getDouble(line);
+    if (startWith("d ")) mat->transparency = _getDouble(line);
   }
   
   // Decode Obj file
@@ -176,27 +177,6 @@ Object3D * Object3D::fromObj(std::ifstream & obj, std::ifstream & mtl) {
   }
   
 #undef startWith
-  
-  // Smooth normals
-//  for (int i = 0; i < object->getTriangles().size(); i++) {
-//    Triangle3D * t = object->getTriangles()[i];
-    
-//    // for each vertex of triangle *t
-//    for (int in = 0; in < 3; in++) {
-//      t->sn[in] = t->n; // memset vertex normal
-      
-//      // serch for vertexes with same index
-//      for (int j = 0; j < object->getTriangles().size(); j++) {
-//        if (i == j) continue;
-//        Triangle3D * t2 = object->getTriangles()[j];
-//        for (int jn = 0; jn < 3; jn++) {
-//          if (t->vidx[in] == t2->vidx[jn]) t->sn[in] = t->sn[in] + t2->n;
-//        }
-//      }
-      
-//      t->sn[in].normalize();
-//    }
-//  }
   
   return object;
 }

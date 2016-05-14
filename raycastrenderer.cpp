@@ -13,8 +13,7 @@ float nextFloat() {
 RaycastRenderer::RaycastRenderer() : QWidget(0), frame(0), mutexPaint(false), mutexMatrix(false) {
   setMinimumWidth(400);
   setMinimumHeight(300);
-  
-  
+ 
   view = Matrix4x4::identity();
 //  view.translate(0, -7, 21);
 //  view.translate(0, 0,-10);
@@ -87,32 +86,33 @@ void RaycastRenderer::prepareObj() {
   std::cerr << "Preparing objects ... ";
   int mill = getMilliCount();
   
-  float z = 1.f;
-  float s = 1.f;
-  float o = 0.f;
-  Material * mat = new Material();
-  triangles.push_back(new Triangle3D(
-                        Vec3f(-s, -s,  z),
-                        Vec3f( o,  s,  z),
-                        Vec3f( s, -s,  z),
-                        Vec3f( 0.0f,  0.0f,  1.0f), 
-                        mat
-  ));
+//  float z = 1.f;
+//  float s = 1.f;
+//  float o = 0.f;
+//  Material * mat = new Material();
+//  triangles.push_back(new Triangle3D(
+//                        Vec3f(-s, -s,  z),
+//                        Vec3f( o,  s,  z),
+//                        Vec3f( s, -s,  z),
+//                        Vec3f( 0.0f,  0.0f,  1.0f), 
+//                        mat
+//  ));
   
-//  foreach (Object3D o, Info::scene.objects) {
-//    foreach (Triangle3D * t, o.getTriangles()) {
-//      Triangle3D * tr = new Triangle3D();
-//      memcpy(tr, t, sizeof(Triangle3D));
-//      tr->v[0] = o.getModel() * t->v[0];
-//      tr->v[1] = o.getModel() * t->v[1];
-//      tr->v[2] = o.getModel() * t->v[2];
-//      if (triangles.size() == 2) {
-//        std::cerr << tr->v[0][0] << " " << tr->v[0][1] << " " << tr->v[0][2] << "\n";
-//        // -2 0 -3.5
-//      }
-//      triangles.push_back(tr);
-//    }
-//  }
+  foreach (Object3D o, Info::scene.objects) {
+    foreach (Triangle3D * t, o.getTriangles()) {
+      Triangle3D * tr = new Triangle3D();
+      memcpy(tr, t, sizeof(Triangle3D));
+      tr->v[0] = t->v[0];
+      tr->v[1] = t->v[1];
+      tr->v[2] = t->v[2];
+      tr->modelRef = &o.getModel();
+      if (triangles.size() == 2) {
+        std::cerr << tr->v[0][0] << " " << tr->v[0][1] << " " << tr->v[0][2] << "\n";
+        // -2 0 -3.5
+      }
+      triangles.push_back(tr);
+    }
+  }
   
   
   /*
@@ -152,90 +152,144 @@ void RaycastRenderer::renderFrame(bool force) {
   
   while(mutexPaint || mutexMatrix);
   
-  for (int i = 0; i < samplesPerDraw; i++)
-    cpuRender(frame);
+  cpuRender(frame);
   
   mutexPaint = true;
   update(); // call paintEvent
   updateFuture = QtConcurrent::run(this, &RaycastRenderer::renderFrame, false); // Run new loop
 }
 
-void RaycastRenderer::cpuRender(QImage * buffer) {
+Col3f RaycastRenderer::calculateColor(const Triangle3D & tr, const LightSource & ls, const Vec3f & point, float lightTravled) {
   
-  Vec4f origin = view * Vec4f(0.0f, 0.0f, 0.0f, 1.0f);
-//  static const Vec3f camNormal = Vec3f(0.0f, 0.0f, 1.0f);
+  const Vec3f & p0 = ls.origin;
+  const Vec3f & p1 = point;
   
-  foreach (const LightSource & s, Info::scene.lights) {
-    Vec3f p1 = s.origin;
-    Vec3f dir = Vec3f( nextFloat()*2-1, nextFloat()*2-1, nextFloat()*2-1 );
-    dir.normalize();
-    Vec3f p2 = p1 + dir*photonMaxLength;
+  float dist = (p1-p0).length() + lightTravled;
+  float e = ls.energy;
     
-    Vec3f point;
-    float dist;
-    Triangle3D * tr;
-    if (sendRay(p1, p2, point, dist, tr)) {
+  float falloff = ls.attenuation[0];
+  falloff += ls.attenuation[1] * (1-dist/e);
+  falloff += ls.attenuation[2] * (1-dist*dist/(e*e));
+  falloff = clamp(falloff, 0.0f, 1.0f);
+  
+  return tr.material->diffuseReflection * falloff;
+}
+
+void RaycastRenderer::cpuRender(QImage * b) {
+  
+  clock_t c = clock();
+  qDebug() << "Start CPU";
+  
+  inv_view = view.inversed().transposed();  
+  
+  dataList.clear();
+  
+  for (int i = 0; i < Info::scene.lights.size(); i++) {
+    qDebug() << "  Start" << i << "source";
+    const LightSource & ls = Info::scene.lights[i];
+    if (!ls.enabled) continue;
+    disperse(ls.origin, ls);
+  }
+  
+  qDebug() << " dataList size" << dataList.size();
+  
+  foreach (const ScreenRayData & d, dataList) {
+    Col3f c1 = d.color;
+    Col3f c2 = makeCol3f(b->pixel(d.pos[0], d.pos[1]));
+    if (c1.length() > c2.length())
+      b->setPixel(d.pos[0], d.pos[1], makeColor(d.color));
+  }
+  
+  qDebug() << "End CPU in " << float(clock() - c) / CLOCKS_PER_SEC;
+}
+
+void RaycastRenderer::disperse(const Vec3f & origin, const LightSource & ls, float lightTravled, Triangle3D * isMirrored, int maxIterations, Triangle3D * skip) {
+  Vec4f screenOrigin = Vec4f(0.0, 0.0, -1.0, 1.0);
+  
+  for (int i = 0; i < maxIterations; i++) {
+    Vec3f dir = Vec3f(nextFloat()*2-1, nextFloat()*2-1, nextFloat()*2-1); 
+    dir.normalize();
+    
+    Vec3f p1 = origin;
+    Vec3f p2 = origin + dir;
+    
+    Vec3f point1, point2;
+    float dist1, dist2;
+    Triangle3D * triangle1, * triangle2;
+    if (triangle1 == skip) continue;
+    if (sendRay(p1, p2, point1, dist1, triangle1)) {
       
-//      Vec3f rayDirection = (origin-point).normalize();
-//      if (rayDirection * camNormal > 0) continue;
-      
-      // Diffuse Reflection
-      Vec3f point2;
-      float dist2;
-      Triangle3D * tr2;
-      if (!sendRay(point, origin, point2, dist2, tr2, (point-origin).length(), tr)) {
-        
-        bool hit;
-        Vec2f r = rayInEyePos(point, origin, hit);
-        if (hit) {
+      if (triangle1->material->isMirror) {
+        disperse(point1, ls, (p1-point1).length(), triangle1, samplesPerReflection, triangle1);
+      } else {
+        if (!sendRay(point1, screenOrigin, point2, dist2, triangle2, (point1-screenOrigin).length(), triangle1)) {
           
-          r[0] = r[0] * width;
-          r[1] = r[1] * height;
-          
-          buffer->setPixel(r[0], height - 1 - r[1], makeColor(tr->material->diffuseReflection));
+          bool hit;
+          Vec2f r = rayInEyePos(point1, screenOrigin, hit);
+          if (hit) {
+            r[0] = r[0] * width;
+            r[1] = r[1] * height;          
+            
+            Col3f color = calculateColor(*triangle1, ls, point1, lightTravled);
+            
+            ScreenRayData data;
+            data.pos = r;
+            data.color = color;
+            dataList.push_back(data);
+          }
         }
-        
-      } 
+      }
     }
   }
 }
 
-Vec2f RaycastRenderer::rayInEyePos(const Vec3f & p1, const Vec3f & p2, bool & hit) {
-  float f = 0.1f;
+Vec2f RaycastRenderer::rayInEyePos(const Vec3f & ray, const Vec3f & origin, bool & hit) {  
+  static const Matrix4x4 idn = Matrix4x4::identity();
+  
+  float aspect = float(width) / height;
+  static const float f = tan((45/180.f*3.1415926)/2);
+  
+  float fl = -f*aspect;
+  float fr = f*aspect;
+  float ft = f;
+  float fb = -f;
+  Vec4f lt = Vec4f(fl, ft, 0.0f, 1.0f);
+  Vec4f rt = Vec4f(fr, ft, 0.0f, 1.0f);
+  Vec4f lb = Vec4f(fl, fb, 0.0f, 1.0f);
+  Vec4f rb = Vec4f(fr, fb, 0.0f, 1.0f);
+  
   Triangle3D t1 = Triangle3D(
-    view * Vec4f(-f, -f,  f, 1.0f), 
-    view * Vec4f( f, -f,  f, 1.0f), 
-    view * Vec4f(-f,  f,  f, 1.0f),
+        lb, rb, lt,
+//    view * Vec4f(l, b, f, 1.0f), 
+//    view * Vec4f(r, b, f, 1.0f), 
+//    view * Vec4f(l, t, f, 1.0f),
     Vec3f( 0.f,  0.f,  1.f),
      NULL
   );
   Triangle3D t2 = Triangle3D(  
-    view * Vec4f( f,  f,  f, 1.0f),
-    view * Vec4f(-f,  f,  f, 1.0f),
-    view * Vec4f( f, -f,  f, 1.0f),
+        rt, lt, rb,
+//    view * Vec4f(r, t, f, 1.0f),
+//    view * Vec4f(l, t, f, 1.0f),
+//    view * Vec4f(r, b, f, 1.0f),
     Vec3f( 0.f,  0.f,  1.f),
      NULL
   );
-  
-  bool b = false;
   Vec3f point;
   float distance;
-  float s = 1, t = 1;
+  float _s = 1, _t = 1;
   
-  Vec2f r;
+  Vec2f _r;
   
-  if (!(b = intersect(&t1, p1, p2, photonMaxLength, distance, point, &s, &t))) {
-    b = intersect(&t2, p1, p2, photonMaxLength, distance, point, &s, &t);
-    r[0] = 1-s;
-    r[1] = 1-t;
+  if (!(hit = intersect(&t1, idn, idn, ray, origin, photonMaxLength, distance, point, &_s, &_t))) {
+    hit = intersect(&t2, idn, idn, ray, origin, photonMaxLength, distance, point, &_s, &_t);
+    _r[0] = 1-_s;
+    _r[1] = 1-_t;
   } else {
-    r[0] = s;
-    r[1] = t;
+    _r[0] = _s;
+    _r[1] = _t;
   }
   
-  hit = b;
-  
-  return r;
+  return _r;
 }
 
 void RaycastRenderer::resizeEvent(QResizeEvent * e) {
@@ -256,22 +310,20 @@ void RaycastRenderer::resizeEvent(QResizeEvent * e) {
     for (int x = 0; x < width; x++)
       for (int y = 0; y < height; y++) 
         newFrame->setPixel(x, y, 0x000000);
-  
+      
   if (frame) delete frame;
   frame = newFrame;
 }
 
-
-
-bool RaycastRenderer::intersect( Triangle3D * tr, 
+bool RaycastRenderer::intersect( Triangle3D * tr, const Matrix4x4 & m, const Matrix4x4 & invm,
                                  const Vec3f &p0, // Ray origin 
                                  const Vec3f &p1, // 
                                  float maxDistance, float &distance, Vec3f &point,
                                  float * os, float * ot) {
-  Vec3f v0 = tr->v[0];
-  Vec3f v1 = tr->v[1];
-  Vec3f v2 = tr->v[2];
-  Vec3f N  = tr->n;
+  Vec3f v0 = m * tr->v[0];
+  Vec3f v1 = m * tr->v[1];
+  Vec3f v2 = m * tr->v[2];
+  Vec3f N  = invm * tr->n;
   
   Vec3f dir = (p1-p0).normalize();
   Vec3f u = v1 - v0;
@@ -317,7 +369,7 @@ bool RaycastRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, float max
   
   foreach (Triangle3D * tr, triangles) {
     if (tr == skip) continue;
-    if (intersect(tr, origin, ray, maxDistance, d, testPoint)) {
+    if (intersect(tr, view, inv_view, origin, ray, maxDistance, d, testPoint)) {
       maxDistance = d;
       return true;
     }
@@ -332,7 +384,7 @@ bool RaycastRenderer::sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & p
   
   foreach (Triangle3D * tr, triangles) {
     if (tr == skip) continue;
-    if (intersect(tr, origin, ray, maxDistance, d, testPoint)) {
+    if (intersect(tr, view, inv_view, origin, ray, maxDistance, d, testPoint)) {
       maxDistance = d;
       point = testPoint;
       triangle = tr;

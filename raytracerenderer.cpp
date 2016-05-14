@@ -18,20 +18,29 @@ static const int b_lightCount_id = 7;
 
 ///////////////////////////////////////////////////
 
+void RayTraceRenderer::updateMatView() {
+  for (int i = 0; i < 16; i++) {
+    matView[i]->setText( QString::number(view.v[i]) );
+  }
+}
+
+
 RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lightCount(0) {
   setMinimumWidth(400);
   setMinimumHeight(300);
   mutexPaint = false;
   mutexMatrix = false;
+  quality = ssaa = 0;
   
   view = Matrix4x4::identity();
   /*
   view.translate(-4.5f, 0.0f, 4.5f);
   view = view * Matrix4x4::createYRotation(-82.5 * 3.1415 / 180.0f);
   /* */
-  /*
-  view.translate(0, 15, 0);
-  view = view * Matrix4x4::createXRotation(-90 * 3.1415 / 180.0f);
+//  /*
+//  view.translate(0, 1.75, 7.25);
+  view.translate(0, 0, 5);
+//  view = view * Matrix4x4::createXRotation(-90 * 3.1415 / 180.0f);
   /* */
   /*
   view.translate(0, 7, 21);
@@ -81,32 +90,69 @@ RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lig
   prepareObjects->setText("PrepareObj");
   connect(prepareObjects, SIGNAL(clicked()), SLOT(prepareObj()));
   
-  int h = 110;
+  int h = 100;
+
+  quad = new QPushButton(uiFrame);
+  quad->setGeometry(0, h, 60, 25);
+  quad->setText("Quad");
+  quad->setEnabled(false);
+  connect(quad, SIGNAL(clicked(bool)), SLOT(setQuality()));
   
-  QLabel * l = new QLabel(uiFrame);
-  l->setGeometry(0, h, 200, 25);
-  l->setText("Избыточная выборка \nсглаживания");
-  l->setAlignment(Qt::AlignCenter);
+  half = new QPushButton(uiFrame);
+  half->setGeometry(70, h, 60, 25);
+  half->setText("Half");
+  connect(half, SIGNAL(clicked(bool)), SLOT(setQuality()));
   
-  samplesBox = new QComboBox(uiFrame);
-  samplesBox->setGeometry(0, h+15, 200, 50);
-  samplesBox->addItem("SSAAx1");
-  samplesBox->addItem("SSAAx4");
-  samplesBox->addItem("SSAAx9");
-  samplesBox->addItem("SSAAx16");
-//  samplesBox->setEnabled(true);
+  full = new QPushButton(uiFrame);
+  full->setGeometry(140, h, 60, 25);
+  full->setText("Full");
+  connect(full, SIGNAL(clicked(bool)), SLOT(setQuality()));
   
-  l = new QLabel(uiFrame);
-  l->setGeometry(0, h+50, 200, 25);
-  l->setText("Выборка освещения");
-  l->setAlignment(Qt::AlignCenter);
+  h += 20;
+  ssaax1 = new QPushButton(uiFrame);
+  ssaax1->setGeometry(0, h, 60, 25);
+  ssaax1->setText("x1");
+  ssaax1->setEnabled(false);
+  connect(ssaax1, SIGNAL(clicked(bool)), SLOT(setSamples()));
   
-  softLightBox = new QComboBox(uiFrame);
-  softLightBox->setGeometry(0, h+60, 200, 50);
-  softLightBox->addItem("Жесткий свет (x1)");
-  softLightBox->addItem("Мягкий свет x4");
-  softLightBox->addItem("Мягкий свет x9");
-  softLightBox->addItem("Мягкий свет x16");
+  ssaax4 = new QPushButton(uiFrame);
+  ssaax4->setGeometry(50, h, 60, 25);
+  ssaax4->setText("x4");
+  connect(ssaax4, SIGNAL(clicked(bool)), SLOT(setSamples()));
+  
+  ssaax9 = new QPushButton(uiFrame);
+  ssaax9->setGeometry(100, h, 60, 25);
+  ssaax9->setText("x9");
+  connect(ssaax9, SIGNAL(clicked(bool)), SLOT(setSamples()));
+  
+  ssaax16 = new QPushButton(uiFrame);
+  ssaax16->setGeometry(150, h, 60, 25);
+  ssaax16->setText("x16");
+  connect(ssaax16, SIGNAL(clicked(bool)), SLOT(setSamples()));
+  
+  
+  
+//  samplesBox = new QComboBox(uiFrame);
+//  samplesBox->setGeometry(0, h+15, 200, 50);
+//  samplesBox->addItem("SSAAx1");
+//  samplesBox->addItem("SSAAx4");
+//  samplesBox->addItem("SSAAx9");
+//  samplesBox->addItem("SSAAx16");  
+  
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      int idx = i*4 + j;
+      QLineEdit * v = new QLineEdit(uiFrame);
+      v->setGeometry(j*50, h+50+i*30, 50, 30);
+      matView[idx] = v;
+    }
+  }
+  updateMatView();
+  
+  setMatrixButton = new QPushButton(uiFrame);
+  setMatrixButton->setGeometry(25, h+170, 150, 30);
+  setMatrixButton->setText("Set View Matrix");
+  connect(setMatrixButton, SIGNAL(clicked(bool)), SLOT(setMatrix()));
   
   buttonsState = 0b11;  
   
@@ -116,11 +162,7 @@ RayTraceRenderer::RayTraceRenderer() : QWidget(0), clTriangles(0), frame(0), lig
 }
 
 int RayTraceRenderer::getSamplesCount() {
-  return samplesBox->currentIndex() + 1;
-}
-
-int RayTraceRenderer::getSoftLightSamples() {
-  return softLightBox->currentIndex() + 1;
+  return ssaa + 1;
 }
 
 void RayTraceRenderer::prepareCL() {
@@ -172,6 +214,7 @@ void RayTraceRenderer::prepareCL() {
   b_ray = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float)*16);
   b_trianglesCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int));
   b_lightCount = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int)); 
+  
   //create queue to which we will push commands for the device.
   queue = cl::CommandQueue(context, device[0]);
   pixelKernel = cl::Kernel(program, "rayCast");
@@ -190,12 +233,18 @@ void RayTraceRenderer::prepareObj() {
   std::cerr << "Preparing objects ... ";
   int mill = getMilliCount();
   foreach (Object3D o, Info::scene.objects) {
+    Matrix4x4 inv = o.getModel().inversed().transposed();
     foreach (Triangle3D * t, o.getTriangles()) {
       Triangle3D * tr = new Triangle3D();
       memcpy(tr, t, sizeof(Triangle3D));
       tr->v[0] = o.getModel() * t->v[0];
       tr->v[1] = o.getModel() * t->v[1];
       tr->v[2] = o.getModel() * t->v[2];
+      tr->n = inv * t->n;
+      tr->sn[0] = inv * t->sn[0];
+      tr->sn[1] = inv * t->sn[1];
+      tr->sn[2] = inv * t->sn[2];
+      tr->material = t->material;
       triangles.push_back(tr);
     }
   }
@@ -204,15 +253,32 @@ void RayTraceRenderer::prepareObj() {
   clTriangles = new CLTriangle3D[triangles.size()];
   for (size_t i = 0; i < triangles.size(); i++) {
     
-    std::cerr << i << " ";
+    
     CLTriangle3D & t = clTriangles[i];
     const Triangle3D * tr = triangles[i];
+    
     for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) { 
-        t.v[j].s[k]  = tr->v[j][k];
-        t.sn[j].s[k] = tr->sn[j][k];
-      }
+      t.min.s[j] = tr->v[0][j];
+      t.max.s[j] = tr->v[0][j];
+    }
+    
+    for (int j = 0; j < 3; j++) {
+      t.v0.s[j]  = tr->v[0][j];
+      t.v1.s[j]  = tr->v[1][j];
+      t.v2.s[j]  = tr->v[2][j];
+      
+      if (t.min.s[j] > t.v0.s[j]) t.min.s[j] = t.v0.s[j];
+      if (t.min.s[j] > t.v1.s[j]) t.min.s[j] = t.v1.s[j];
+      if (t.min.s[j] > t.v2.s[j]) t.min.s[j] = t.v2.s[j];
+      if (t.max.s[j] > t.v0.s[j]) t.max.s[j] = t.v0.s[j];
+      if (t.max.s[j] > t.v1.s[j]) t.max.s[j] = t.v1.s[j];
+      if (t.max.s[j] > t.v2.s[j]) t.max.s[j] = t.v2.s[j];
+      
       t.n.s[j] = tr->n[j];
+      t.n0.s[j] = tr->sn[0][j];
+      t.n1.s[j] = tr->sn[1][j];
+      t.n2.s[j] = tr->sn[2][j];
+      
       t.diff.s[j] = tr->material->diffuseReflection[j];
       t.spec.s[j] = tr->material->specularReflection[j];
       t.refl.s[j] = tr->material->reflection[j];
@@ -220,6 +286,10 @@ void RayTraceRenderer::prepareObj() {
     t.isMirror = tr->material->isMirror;
     t.reflectivity = tr->material->reflectivity;
     t.shininess = tr->material->shininess;
+    t.transparency = tr->material->transparency;
+    
+    t.refraction = 1.f;
+    if (t.diff.s[2] == 0.8f) t.refraction = 1.22f;
   }
   
   b_triangles = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(CLTriangle3D) * triangles.size());
@@ -245,17 +315,35 @@ void RayTraceRenderer::resetLightIfNeeded() {
 }
 
 void RayTraceRenderer::renderCL() {
-  qDebug() << "Start ... " << samplesBox->isEditable();
+  qDebug() << "Start ... ";
   int start = getMilliCount();
 
   resetLightIfNeeded();
   
   Vec3f origin = (view * Vec4f(0.0, 0.0, 0.0, 1.0));
   
-  samplesInput = getSamplesCount();
-  softLightInput = getSoftLightSamples();
+  int s = 1;
+  if (quality == 0) s = 4;
+  else if (quality == 1) s = 2;
+  int w = width / s;
+  int h = height / s;
   
-  queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(int)*4, viewport);
+  // Set matrix
+  while(mutexMatrix); 
+  mutexMatrix = true;
+
+  vpMatrix[0][0] = 1.0 / w;
+  vpMatrix[1][1] = 1.0 / h;
+  
+  rayMatrix = (view * proj) * biasMatrixInverse * vpMatrix;
+  mutexMatrix = false;
+  
+ 
+  static int param[4];
+  param[0] = w; param[1] = h;
+  param[2] = getSamplesCount();
+  
+  queue.enqueueWriteBuffer(b_viewport, CL_TRUE, 0, sizeof(int)*4, param);
   static float orig[4];
   for (int i = 0; i < 3; i++) orig[i] = origin[i];
   static float mat[16];
@@ -266,10 +354,19 @@ void RayTraceRenderer::renderCL() {
   int count = triangles.size();
   queue.enqueueWriteBuffer(b_trianglesCount, CL_TRUE, 0, sizeof(int), &count);
   
-  queue.enqueueNDRangeKernel(pixelKernel, cl::NDRange(0, 0), cl::NDRange(width, height), cl::NullRange);
+  queue.enqueueNDRangeKernel(pixelKernel, cl::NDRange(0, 0), cl::NDRange(w, h), cl::NullRange);
   queue.finish();
   
-  queue.enqueueReadBuffer(b_frame, CL_TRUE, 0, sizeof(int)*width*height, frame->bits());
+  int * r = new int[w*h];
+  queue.enqueueReadBuffer(b_frame, CL_TRUE, 0, sizeof(int)*w*h, r);
+  
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+       frame->setPixel(x, y, r[(x/s)+(y/s)*w]);
+    }
+  }
+  
+  delete r;
   
   qDebug() << getMilliCount() - start;
 }
@@ -280,11 +377,6 @@ void RayTraceRenderer::renderFrame(bool force) {
     if (!isVisible() ||  // Window closed
         !drawingButton->isChecked() // Button unchecked
         ) return; // Stop loop  
-  
-  while(mutexMatrix); 
-  mutexMatrix = true;
-  rayMatrix = (view * proj) * biasMatrixInverse * vpMatrix;
-  mutexMatrix = false;
   
   renderCL();
   
@@ -332,9 +424,6 @@ void RayTraceRenderer::resizeEvent(QResizeEvent * e) {
 //  proj[3][2] =-1.0f;
 //  proj[2][3] = -2.0f;
 //  proj[3][2] = -1.0f;
-  
-  vpMatrix[0][0] = 1.0 / width;
-  vpMatrix[1][1] = 1.0 / height;
   
 //  if (zbuffer) delete zbuffer;
 //  zbuffer = new float[width*height];
@@ -468,4 +557,5 @@ void RayTraceRenderer::keyPressEvent(QKeyEvent * e) {
     case Qt::Key_R: slotTU(); break;
     case Qt::Key_F: slotTD(); break;      
   }
+  updateMatView();
 }

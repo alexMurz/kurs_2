@@ -16,8 +16,14 @@
 
 #include <QImage>
 #include <QPainter>
+#include <vector>
 
 #include "info.h"
+
+typedef struct {
+    Vec2f pos;
+    Col3f color;
+} ScreenRayData;
 
 class RaycastRenderer : public QWidget
 {
@@ -25,21 +31,25 @@ class RaycastRenderer : public QWidget
     static const int toolBarWidth = 200;
     static const int photonMaxLength = 100000;
     static const int jumpCount = 12;
-    static const int samplesPerDraw = 1000;
+    static const int samplesPerDraw = 100000;
+    static const int samplesPerReflection = 0;
     
     /*
      * RayTrace stuff to cast rays
      */
     bool sendRay(const Vec3f & origin, const Vec3f & ray, float maxDistance = photonMaxLength, const Triangle3D * skip = 0);
     bool sendRay(const Vec3f & origin, const Vec3f & ray, Vec3f & point, float & dist, Triangle3D *& triangle, float maxDistance = photonMaxLength, Triangle3D * skip = 0);
-    bool intersect(Triangle3D * tr, const Vec3f &Origin, const Vec3f &Ray, float MaxDistance, float &Distance, Vec3f &Point,
+    bool intersect(Triangle3D * tr, const Matrix4x4 & m, const Matrix4x4 & invm, const Vec3f &Origin, const Vec3f &Ray, float MaxDistance, float &Distance, Vec3f &Point,
                    float * os = 0, float * ot = 0);
     
     Vec2f rayInEyePos(const Vec3f & p1, const Vec3f & p2, bool & hit);
+    Col3f calculateColor(const Triangle3D & tr, const LightSource & ls, const Vec3f & point, float lightTravled);
+    void disperse(const Vec3f & origin, const LightSource & ls, float lightTravled = 0, Triangle3D * isMirrored = 0, int maxIterations = samplesPerDraw, Triangle3D * skip = 0);
     
-    Matrix4x4 view;
+    Matrix4x4 view, inv_view;
     
-    QImage * frame;    
+    QImage * frame;
+    std::vector<ScreenRayData> dataList;
     
     QFrame * uiFrame;
     QPushButton * drawingButton; // Loop painting
@@ -55,7 +65,7 @@ class RaycastRenderer : public QWidget
     
     QFuture<void> updateFuture;
     
-    void cpuRender(QImage * buffer);
+    void cpuRender(QImage*);
     
     union {
         struct { int width, height; };

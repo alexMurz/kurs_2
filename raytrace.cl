@@ -14,7 +14,10 @@ typedef struct {
   float3 diffuse, specular;
   float3 refl;
   int isMirror;
-  float reflectivity, shininess;
+  float reflectivity, shininess, transparency;
+  float refraction;
+  
+  float3 min, max;
 } Triangle3D;
 
 typedef struct {
@@ -62,7 +65,7 @@ IntersectResult intersect(Triangle3D tr,
   float a = -dot(N, w0);
   float b = dot(N, dir);
 
-  if (fabs(b) < 1e-5) return IntersectFalse(1);
+  if (b >= 0) return IntersectFalse(1);
   
   float r = a/b;
   if (r <= 0.0f || r >= maxDistance) return IntersectFalse(2);
@@ -96,6 +99,10 @@ IntersectResult intersect(Triangle3D tr,
   return result;
 }
 
+bool broadPhase(Triangle3D t, const float3 origin, const float3 ray) {
+  return true;
+}
+
 typedef struct {
   bool ok;
   float3 point;
@@ -110,14 +117,14 @@ SendRayResult sendRay(global const Triangle3D * triangles, const int trianglesCo
   result.ok = false;
 
   for (int i = 0; i < trianglesCount; i++) {
-    if (i == skip) continue;
+    if (i == skip || !broadPhase(triangles[i], origin, ray)) continue;
     IntersectResult r = intersect(triangles[i], origin, ray, result.dist); 
     if (r.ok) {
       result.dist = r.distance;
       result.triangle = i;
       result.point = r.point;
       result.ok = true;
-      result.n = triangles[i].n0*r.c[0] + triangles[i].n1*r.c[1] + triangles[i].n2*r.c[2];
+      result.n = triangles[i].n0 + (triangles[i].n1-triangles[i].n0)*r.c[1] + (triangles[i].n2-triangles[i].n0)*r.c[2];
     }
   }
   
@@ -136,7 +143,6 @@ float3 lighting(global const Triangle3D * triangles, float3 n, const int triangl
 
   for (int i = 0; i < lightsCount; i++) {
     if (lights[i].enabled != 1) continue;
-  
     
       float3 v2 = lights[i].position;
       
@@ -144,8 +150,32 @@ float3 lighting(global const Triangle3D * triangles, float3 n, const int triangl
       float dist = length(v2-v1);
 
       SendRayResult r = sendRay(triangles, trianglesCount, v1, v2, dist, triangle);
-      //float3 n = n; // r.n;
-      if (!r.ok) {
+      float mul = 1.0f;
+      float3 tint = 1.0f;
+      int iter = 0;
+      if (r.ok) { // Shadow opaque works
+        mul = 1 - triangles[r.triangle].transparency;
+        tint = triangles[r.triangle].diffuse;
+        
+        float3 p1 = r.point;
+        float3 p2 = r.point + normalize(lights[i].position-p);
+  
+        while(r.ok) {
+          p2 = r.point + normalize(lights[i].position-p1);
+          p1 = r.point;
+          r = sendRay(triangles, trianglesCount, p1, p2, dist, r.triangle);
+          if (r.ok) { 
+            mul = mul * (1 - triangles[r.triangle].transparency);
+            tint = tint * triangles[r.triangle].diffuse;
+          }
+          iter++;
+          if (iter > 10) break;
+        }
+      }
+      
+      tint = mul;
+      
+      if (length(tint) > 0) {
         float e = lights[i].energy;
         
         float3 L = normalize(v2-v1);
@@ -156,7 +186,7 @@ float3 lighting(global const Triangle3D * triangles, float3 n, const int triangl
         float falloff = lights[i].attenuation.x;
         falloff += lights[i].attenuation.y * (1-dist/e);
         falloff += lights[i].attenuation.z * (1-dist*dist/(e*e));
-        falloff = clamp(falloff, 0.0f, 1.0f);      
+        falloff = clamp(falloff, 0.0f, 1.0f);
   
         if (dot(n, L) > 0) {
           float3 dif = triangles[triangle].diffuse * lights[i].diffuse * (clamp(dot(n, L), 0.0f, 1.0f) * falloff);
@@ -175,7 +205,7 @@ float3 lighting(global const Triangle3D * triangles, float3 n, const int triangl
           spe[1] = clamp(spe[1], 0.0f, 1.0f);
           spe[2] = clamp(spe[2], 0.0f, 1.0f);
           
-          col += dif + spe;
+          col += tint*(dif + spe);
         }
       }
   }
@@ -201,11 +231,20 @@ float3 rayTrace(global const Triangle3D * triangles, const int trianglesCount,
       float3 R = normalize(reflect(dir, tr.n));
       float3 v1 = r.point;
       float3 v2 = r.point + R;
-      color = color + tr.reflectivity * (tr.refl*rayTrace(triangles, trianglesCount, v1, v2, jump+1, r.triangle, lights, lightsCount, rorigin));
+      color = color + tr.transparency*tr.reflectivity * (tr.refl*rayTrace(triangles, trianglesCount, v1, v2, jump+1, r.triangle, lights, lightsCount, rorigin));
     }
     
-    float3 n = r.n; //triangles[r.triangle].n0 * r.c.x + triangles[r.triangle].n1 * r.c.y + triangles[r.triangle].n2 * r.c.z;
-    color = color + lighting(triangles, n, trianglesCount, lights, lightsCount, r.triangle, r.point, origin); // tr.diffuse;
+    float3 n = r.n;
+    
+    color = color + tr.transparency*lighting(triangles, n, trianglesCount, lights, lightsCount, r.triangle, r.point, origin);    
+    if (tr.transparency < 1) {
+      float ref = triangles[r.triangle].refraction;
+      float3 dir = normalize(ray - origin);
+      dir = normalize(ref*dir + (dir-n)*(1-ref));
+      float3 v1 = r.point;
+      float3 v2 = r.point + dir;
+      color = color + (1-tr.transparency)*rayTrace(triangles, trianglesCount, v1, v2, jump+1, r.triangle, lights, lightsCount, rorigin);
+    } 
   }
   
   return color;

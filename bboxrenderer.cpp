@@ -404,10 +404,10 @@ void BBoxRenderer::renderPixel() {
 void BBoxRenderer::renderPixelCL() {
   int start = getMilliCount();
   
-  resetLightIfNeeded();
-  
   while (mutexMatrix);
   mutexMatrix = true;  
+  
+  resetLightIfNeeded();
   
   const int & w = width;
   const int & h = height;

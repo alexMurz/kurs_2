@@ -91,6 +91,58 @@ float3 colorCalculator(const float4 v, const float3 n, const global Material* ma
   return c;
 }
 
+typedef struct {
+  float3 color;
+  float z;
+  int result;
+} RenderResult;
+
+RenderResult RenderError(int error) { RenderResult r; r.result = error; return r; }
+
+RenderResult render(float x, float y, 
+              global const int* settings, // Width, Height, UseSS
+              global const float* matrixes, // modelView
+              global const float4* v, // Full Transformed
+              global const float4* V, // MV Transformed
+              global const float3* n, // Normal Vector
+              // Matrial
+              global const Material* mat, // Diffuse, Specular
+              // Lighting
+              global const Light_t* lights,
+              const int lightCount) {
+      RenderResult r;
+      r.result = 0;
+      
+      float m11, m12, m13;
+      float m21, m22, m23;
+      float det, mainDet;
+      float3 c;
+      
+      m11 = x - v[0][0]; m12 = v[1][0] - v[0][0]; m13 = v[2][0] - v[0][0]; 
+      m21 = y - v[0][1]; m22 = v[1][1] - v[0][1]; m23 = v[2][1] - v[0][1]; 
+      
+      mainDet = m12*m23 - m22*m13;
+      det = m11*m23 - m21*m13; // 2
+      c[1] = det / mainDet;
+      
+      det = m21*m12 - m11*m22; // 3
+      c[2] = det / mainDet;
+      
+      c[0] = 1 - c[1] - c[2];  // 1
+      
+      if (c.x<0 || c.y<0 || c.z<0) return RenderError(-1);
+      
+      float z = c.x*v[0].z + c.y*v[1].z + c.z*v[2].z;
+      // if (z < 0 || z >= zbuffer[x+y*settings[0]]) return RenderError(-2);
+      
+      float4 pos  = fixProjDistortion4(V[0], V[1], V[2], v[0][3], v[1][3], v[2][3], c);
+      float3 norm = fixProjDistortion3(n[0], n[1], n[2], v[0][3], v[1][3], v[2][3], c);
+      
+      r.z = z;
+      r.color = colorCalculator(pos, norm, mat, matrixes, lights, lightCount);
+      return r;
+}
+
 void kernel triangleRender(
       global const int* settings, // Width, Height, UseSS
       global const float* matrixes, // modelView
@@ -107,9 +159,33 @@ void kernel triangleRender(
       global const Light_t* lights,
       global const int* lightCount
 ) {
+
   int x = get_global_id(0);
   int y = get_global_id(1);
   
+  float3 c = 0;
+  int samples = 4;
+
+  float step = 1.0/(samples+1);
+  
+  for (float xx = step; xx < 1.0; xx += step) {
+    for (float yy = step; yy < 1.0; yy += step) {
+      RenderResult res = render(x+xx, y+yy, settings, matrixes, v, V, n, mat, lights, lightCount[0]);
+      c += res.color;
+    }
+  }
+  
+  c = c / (samples*samples);
+  
+  RenderResult r = render(x+0.5, y+0.5, settings, matrixes, v, V, n, mat, lights, lightCount[0]);
+  
+  if (r.result < 0) return;  
+  if (r.z < 0 || r.z >= zbuffer[x+y*settings[0]]) return;
+
+  zbuffer[x+y*settings[0]] = r.z;
+  frame[x+(settings[1]-y)*settings[0]] = float3ToColor(c);
+  
+/*
   float m11, m12, m13;
   float m21, m22, m23;
   float det, mainDet;
@@ -137,4 +213,5 @@ void kernel triangleRender(
   
   zbuffer[x+y*settings[0]] = z;
   frame[x+(settings[1]-y)*settings[0]] = float3ToColor(colorCalculator(pos, norm, mat, matrixes, lights, lightCount[0]));
+  */
 }

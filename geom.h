@@ -250,13 +250,13 @@ public:
     static Matrix4x4 identity();
     float* operator[](const int i) { return m[i]; }
     const float* operator[](const int i) const { return m[i]; }
-    Matrix4x4 operator*(const Matrix4x4& a);
+    Matrix4x4 operator*(const Matrix4x4& a) const;
     
     Matrix4x4& operator*=(const float & f) {
       for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) m[i][j] *= f;
       return (*this);
     }
-    Matrix4x4 operator*(const float & f) {
+    Matrix4x4 operator*(const float & f) const {
       return Matrix4x4(*this) *= f;
     }
     

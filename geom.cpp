@@ -80,7 +80,7 @@ Matrix4x4 Matrix4x4::identity() {
     return E;
 }
 
-Matrix4x4 Matrix4x4::operator*(const Matrix4x4& a) {
+Matrix4x4 Matrix4x4::operator*(const Matrix4x4& a) const {
     Matrix4x4 result;
     for (int i=0; i<4; i++) {
         for (int j=0; j<4; j++) {
